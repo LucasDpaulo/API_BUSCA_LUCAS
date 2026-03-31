@@ -186,11 +186,7 @@ class HinovaClient:
                 break
 
             todos_boletos.extend(boletos)
-
-            # Se retornou menos que page_size, não há mais páginas
-            if len(boletos) < page_size:
-                break
-            pagina += 1
+            break  # Por enquanto busca apenas a primeira página
 
         logger.info(
             "Boletos do mês %02d/%d: %d encontrados", mes, ano, len(todos_boletos)
