@@ -10,6 +10,9 @@ _env_path = Path(__file__).resolve().parent.parent / ".env"
 load_dotenv(_env_path)
 
 
+QUEPASA_BASE_URL = os.getenv("QUEPASA_BASE_URL", "http://localhost:31000")
+
+
 def get_tenant_config(tenant_id: str | None = None) -> dict[str, str]:
     """Retorna as credenciais isoladas do tenant (RNF01)."""
     prefix = f"{tenant_id.upper()}_" if tenant_id else ""
