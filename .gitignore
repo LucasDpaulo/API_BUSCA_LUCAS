@@ -2,6 +2,9 @@
 .env
 .secret.key
 
+# Banco de dados
+data.db
+
 # Python
 __pycache__/
 *.py[cod]
