@@ -10,9 +10,9 @@ from src.hinova.schemas import DadosHinova
 
 logger = logging.getLogger(__name__)
 
-# Status de boleto usados pela Hinova
-_STATUS_ABERTO = "Aberto"
-_STATUS_PAGO = "Baixado"
+# Status de boleto usados pela Hinova (descricao_situacao_boleto)
+_STATUS_PAGO = "BAIXADO"
+_STATUS_CANCELADO = "CANCELADO"
 
 
 def periodo_mes(referencia: date | None = None) -> tuple[date, date]:
@@ -40,7 +40,12 @@ def _valor_boleto(boleto: dict) -> Decimal:
 
 def _status_boleto(boleto: dict) -> str:
     """Extrai o status de um boleto."""
-    return boleto.get("status_boleto") or boleto.get("status") or ""
+    return (
+        boleto.get("descricao_situacao_boleto")
+        or boleto.get("status_boleto")
+        or boleto.get("status")
+        or ""
+    )
 
 
 def calcular_boletos(boletos: list[dict]) -> tuple[Decimal, Decimal]:
@@ -56,10 +61,11 @@ def calcular_boletos(boletos: list[dict]) -> tuple[Decimal, Decimal]:
         status = _status_boleto(boleto)
         valor = _valor_boleto(boleto)
 
-        if status == _STATUS_ABERTO:
-            abertos += valor
-        elif status == _STATUS_PAGO:
+        if status == _STATUS_PAGO:
             pagos += valor
+        elif status != _STATUS_CANCELADO:
+            # Tudo que não é BAIXADO nem CANCELADO é considerado aberto
+            abertos += valor
 
     return abertos, pagos
 

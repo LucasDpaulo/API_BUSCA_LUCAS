@@ -51,10 +51,10 @@ def test_periodo_mes_fevereiro_normal():
 
 def test_calcular_boletos_abertos_e_pagos():
     boletos = [
-        {"status_boleto": "Aberto", "valor_boleto": "1000.00"},
-        {"status_boleto": "Aberto", "valor_boleto": "500.00"},
-        {"status_boleto": "Baixado", "valor_boleto": "750.00"},
-        {"status_boleto": "Baixado", "valor_boleto": "250.00"},
+        {"descricao_situacao_boleto": "ABERTO", "valor_boleto": "1000.00"},
+        {"descricao_situacao_boleto": "ABERTO", "valor_boleto": "500.00"},
+        {"descricao_situacao_boleto": "BAIXADO", "valor_boleto": "750.00"},
+        {"descricao_situacao_boleto": "BAIXADO", "valor_boleto": "250.00"},
     ]
     abertos, pagos = calcular_boletos(boletos)
     assert abertos == Decimal("1500.00")
@@ -64,8 +64,8 @@ def test_calcular_boletos_abertos_e_pagos():
 def test_calcular_boletos_formato_brasileiro():
     """Valores com formato 1.250,00 devem ser parseados corretamente."""
     boletos = [
-        {"status_boleto": "Aberto", "valor_boleto": "1.250,00"},
-        {"status_boleto": "Baixado", "valor_boleto": "3.500,50"},
+        {"descricao_situacao_boleto": "ABERTO", "valor_boleto": "1.250,00"},
+        {"descricao_situacao_boleto": "BAIXADO", "valor_boleto": "3.500,50"},
     ]
     abertos, pagos = calcular_boletos(boletos)
     assert abertos == Decimal("1250.00")
@@ -78,11 +78,11 @@ def test_calcular_boletos_lista_vazia():
     assert pagos == Decimal("0.00")
 
 
-def test_calcular_boletos_ignora_status_desconhecido():
-    """Boletos com status diferente de Aberto/Baixado são ignorados."""
+def test_calcular_boletos_ignora_cancelados():
+    """Boletos CANCELADOS não entram em nenhuma soma."""
     boletos = [
-        {"status_boleto": "Cancelado", "valor_boleto": "999.00"},
-        {"status_boleto": "Aberto", "valor_boleto": "100.00"},
+        {"descricao_situacao_boleto": "CANCELADO", "valor_boleto": "999.00"},
+        {"descricao_situacao_boleto": "ABERTO", "valor_boleto": "100.00"},
     ]
     abertos, pagos = calcular_boletos(boletos)
     assert abertos == Decimal("100.00")
@@ -98,8 +98,8 @@ def test_processar_dados_completos():
         vendas_dia=5,
         cancelamentos_dia=2,
         boletos=[
-            {"status_boleto": "Aberto", "valor_boleto": "50000.00"},
-            {"status_boleto": "Baixado", "valor_boleto": "35000.00"},
+            {"descricao_situacao_boleto": "ABERTO", "valor_boleto": "50000.00"},
+            {"descricao_situacao_boleto": "BAIXADO", "valor_boleto": "35000.00"},
         ],
     )
     report = processar(dados)
@@ -128,7 +128,7 @@ def test_processar_100_porcento_pago():
         vendas_dia=1,
         cancelamentos_dia=0,
         boletos=[
-            {"status_boleto": "Baixado", "valor_boleto": "10000.00"},
+            {"descricao_situacao_boleto": "BAIXADO", "valor_boleto": "10000.00"},
         ],
     )
     report = processar(dados)

@@ -28,6 +28,7 @@ def criar_tenant(dados: TenantCreate, db: Session = Depends(get_db)):
         hinova_usuario=dados.hinova_usuario,
         hinova_senha=encrypt(dados.hinova_senha),
         quepasa_token=encrypt(dados.quepasa_token),
+        quepasa_base_url=dados.quepasa_base_url,
         whatsapp_destino=dados.whatsapp_destino,
     )
     db.add(tenant)

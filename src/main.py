@@ -1,11 +1,16 @@
 """Entrypoint da aplicação FastAPI."""
 
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from src.database import init_db
 from src.routes.tenant_routes import router as tenant_router
+
+_STATIC_DIR = Path(__file__).parent / "static"
 
 
 @asynccontextmanager
@@ -23,8 +28,10 @@ app = FastAPI(
 )
 
 app.include_router(tenant_router)
+app.mount("/static", StaticFiles(directory=_STATIC_DIR), name="static")
 
 
 @app.get("/")
 def root():
-    return {"status": "online", "versao": "0.1.0"}
+    """Serve o painel de gestão."""
+    return FileResponse(_STATIC_DIR / "index.html")

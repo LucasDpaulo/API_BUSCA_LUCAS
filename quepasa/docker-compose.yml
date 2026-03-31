@@ -1,0 +1,18 @@
+services:
+  quepasa:
+    image: aireset/quepasa:latest
+    container_name: quepasa
+    restart: unless-stopped
+    ports:
+      - "31000:31000"
+    entrypoint: >
+      sh -c "
+        cd /opt/quepasa &&
+        mkdir -p opt/quepasa &&
+        ln -sf /opt/quepasa/migrations opt/quepasa/migrations &&
+        exec /docker-entrypoint.sh
+      "
+    environment:
+      - WEBSOCKETSSL=false
+      - WEBAPIPORT=31000
+      - APP_ENV=development

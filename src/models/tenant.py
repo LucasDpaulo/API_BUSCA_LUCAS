@@ -21,6 +21,9 @@ class Tenant(Base):
     hinova_usuario: Mapped[str] = mapped_column(String(255), nullable=False)
     hinova_senha: Mapped[str] = mapped_column(Text, nullable=False)
     quepasa_token: Mapped[str] = mapped_column(Text, nullable=False)
+    quepasa_base_url: Mapped[str] = mapped_column(
+        String(500), nullable=False, default="http://localhost:31000"
+    )
     whatsapp_destino: Mapped[str] = mapped_column(String(20), nullable=False)
     ativo: Mapped[bool] = mapped_column(Boolean, default=True)
     ultimo_envio: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)

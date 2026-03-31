@@ -20,7 +20,6 @@ from src.hinova.schemas import DadosHinova
 from src.core.calculator import processar
 from src.quepasa.formatter import formatar_relatorio
 from src.quepasa.client import enviar_relatorio
-from config.settings import QUEPASA_BASE_URL
 
 logging.basicConfig(
     level=logging.INFO,
@@ -66,7 +65,7 @@ def _processar_tenant(db, tenant: Tenant) -> bool:
     mensagem = formatar_relatorio(tenant.nome, report)
 
     # 5. Enviar via Quepasa e atualizar status (Etapa 4)
-    sucesso = enviar_relatorio(db, tenant, QUEPASA_BASE_URL, mensagem)
+    sucesso = enviar_relatorio(db, tenant, tenant.quepasa_base_url, mensagem)
 
     if sucesso:
         logger.info("Relatório enviado com sucesso para %s", tenant.nome)
@@ -113,6 +112,6 @@ def run_daily_report() -> None:
 
 if __name__ == "__main__":
     scheduler = BlockingScheduler()
-    scheduler.add_job(run_daily_report, "cron", hour=19, minute=0)
-    logger.info("Scheduler iniciado — relatório agendado para 19:00 diariamente.")
+    scheduler.add_job(run_daily_report, "cron", hour=16, minute=30)
+    logger.info("Scheduler iniciado — relatório agendado para 16:30 diariamente.")
     scheduler.start()

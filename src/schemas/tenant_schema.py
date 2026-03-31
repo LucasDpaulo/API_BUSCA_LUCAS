@@ -13,6 +13,9 @@ class TenantCreate(BaseModel):
     hinova_usuario: str = Field(..., min_length=1, examples=["usuario_sga"])
     hinova_senha: str = Field(..., min_length=1, examples=["senha_sga"])
     quepasa_token: str = Field(..., min_length=1, examples=["token_quepasa_456"])
+    quepasa_base_url: str = Field(
+        default="http://localhost:31000", examples=["http://localhost:31000"]
+    )
     whatsapp_destino: str = Field(
         ..., min_length=10, max_length=20, examples=["5531999999999"]
     )
@@ -26,6 +29,7 @@ class TenantUpdate(BaseModel):
     hinova_usuario: str | None = Field(None, min_length=1)
     hinova_senha: str | None = Field(None, min_length=1)
     quepasa_token: str | None = Field(None, min_length=1)
+    quepasa_base_url: str | None = Field(None)
     whatsapp_destino: str | None = Field(None, min_length=10, max_length=20)
     ativo: bool | None = None
 
@@ -35,6 +39,7 @@ class TenantResponse(BaseModel):
 
     id: str
     nome: str
+    quepasa_base_url: str
     whatsapp_destino: str
     ativo: bool
     ultimo_envio: datetime | None

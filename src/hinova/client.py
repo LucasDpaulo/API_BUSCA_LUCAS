@@ -31,7 +31,7 @@ class HinovaClient:
         """Faz POST e retorna o JSON, logando erros (RNF04)."""
         url = f"{BASE_URL}/{endpoint}"
         try:
-            resp = requests.post(url, json=payload, headers=self._headers(), timeout=30)
+            resp = requests.post(url, json=payload, headers=self._headers(), timeout=60)
             resp.raise_for_status()
             return resp.json()
         except requests.RequestException as e:
@@ -42,7 +42,7 @@ class HinovaClient:
         """Faz GET e retorna o JSON, logando erros (RNF04)."""
         url = f"{BASE_URL}/{endpoint}"
         try:
-            resp = requests.get(url, headers=self._headers(), timeout=30)
+            resp = requests.get(url, headers=self._headers(), timeout=60)
             resp.raise_for_status()
             return resp.json()
         except requests.RequestException as e:
@@ -168,16 +168,16 @@ class HinovaClient:
 
         todos_boletos: list[dict] = []
         pagina = 0
-        page_size = 1000
+        page_size = 100
 
         while True:
             payload = {
-                "data_vencimento_inicial": data_ini,
-                "data_vencimento_final": data_fim,
+                "data_inicial": data_ini,
+                "data_final": data_fim,
                 "quantidade_por_pagina": page_size,
                 "inicio_paginacao": pagina,
             }
-            data = self._post("listar/boleto/periodo", payload)
+            data = self._post("listar/boleto", payload)
             if not data:
                 break
 

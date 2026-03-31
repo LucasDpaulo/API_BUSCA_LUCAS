@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Busca Lucas - Painel</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f2f5; color: #1a1a2e; }
+
+        /* Header */
+        .header { background: #1a1a2e; color: white; padding: 16px 32px; display: flex; justify-content: space-between; align-items: center; }
+        .header h1 { font-size: 20px; font-weight: 600; }
+        .header span { font-size: 13px; opacity: 0.7; }
+
+        /* Layout */
+        .container { max-width: 1100px; margin: 24px auto; padding: 0 16px; }
+
+        /* Toolbar */
+        .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .toolbar h2 { font-size: 18px; color: #333; }
+
+        /* Buttons */
+        .btn { padding: 10px 20px; border: none; border-radius: 6px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.2s; }
+        .btn-primary { background: #4361ee; color: white; }
+        .btn-primary:hover { background: #3a56d4; }
+        .btn-danger { background: #e63946; color: white; }
+        .btn-danger:hover { background: #c1121f; }
+        .btn-secondary { background: #6c757d; color: white; }
+        .btn-secondary:hover { background: #565e64; }
+        .btn-success { background: #2d6a4f; color: white; }
+        .btn-success:hover { background: #1b4332; }
+        .btn-sm { padding: 6px 12px; font-size: 12px; }
+
+        /* Cards (lista de tenants) */
+        .tenant-list { display: flex; flex-direction: column; gap: 12px; }
+        .tenant-card {
+            background: white; border-radius: 10px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            display: flex; justify-content: space-between; align-items: center; transition: all 0.2s;
+        }
+        .tenant-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .tenant-info h3 { font-size: 16px; margin-bottom: 4px; }
+        .tenant-info p { font-size: 13px; color: #666; }
+        .tenant-actions { display: flex; gap: 8px; align-items: center; }
+        .badge { padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+        .badge-active { background: #d4edda; color: #155724; }
+        .badge-inactive { background: #f8d7da; color: #721c24; }
+        .status-text { font-size: 12px; color: #888; margin-top: 4px; }
+
+        /* Empty state */
+        .empty-state { text-align: center; padding: 60px; color: #999; }
+        .empty-state p { font-size: 16px; margin-bottom: 16px; }
+
+        /* Modal */
+        .modal-overlay {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5); z-index: 100; justify-content: center; align-items: flex-start;
+            padding-top: 40px; overflow-y: auto;
+        }
+        .modal-overlay.active { display: flex; }
+        .modal {
+            background: white; border-radius: 12px; width: 100%; max-width: 600px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3); margin-bottom: 40px;
+        }
+        .modal-header {
+            padding: 20px 24px; border-bottom: 1px solid #eee; display: flex;
+            justify-content: space-between; align-items: center;
+        }
+        .modal-header h3 { font-size: 18px; }
+        .modal-close { background: none; border: none; font-size: 24px; cursor: pointer; color: #999; }
+        .modal-body { padding: 24px; }
+        .modal-footer { padding: 16px 24px; border-top: 1px solid #eee; display: flex; justify-content: flex-end; gap: 10px; }
+
+        /* Form */
+        .form-section { margin-bottom: 20px; }
+        .form-section-title { font-size: 14px; font-weight: 600; color: #4361ee; margin-bottom: 12px; padding-bottom: 6px; border-bottom: 2px solid #4361ee20; }
+        .form-group { margin-bottom: 14px; }
+        .form-group label { display: block; font-size: 13px; font-weight: 500; color: #555; margin-bottom: 4px; }
+        .form-group input, .form-group select {
+            width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 6px;
+            font-size: 14px; transition: border-color 0.2s;
+        }
+        .form-group input:focus, .form-group select:focus { outline: none; border-color: #4361ee; }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .form-check { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+        .form-check input[type="checkbox"] { width: 18px; height: 18px; }
+        .form-check label { margin-bottom: 0; }
+
+        /* Toast */
+        .toast {
+            position: fixed; bottom: 24px; right: 24px; padding: 14px 24px; border-radius: 8px;
+            color: white; font-size: 14px; z-index: 200; opacity: 0; transition: opacity 0.3s;
+        }
+        .toast.show { opacity: 1; }
+        .toast-success { background: #2d6a4f; }
+        .toast-error { background: #e63946; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>API Busca Lucas</h1>
+    <span>Painel de Gestao de Clientes</span>
+</div>
+
+<div class="container">
+    <div class="toolbar">
+        <h2>Clientes</h2>
+        <button class="btn btn-primary" onclick="abrirModal()">+ Novo Cliente</button>
+    </div>
+
+    <div id="tenant-list" class="tenant-list">
+        <div class="empty-state">
+            <p>Nenhum cliente cadastrado</p>
+            <button class="btn btn-primary" onclick="abrirModal()">Cadastrar primeiro cliente</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Cadastro/Edicao -->
+<div class="modal-overlay" id="modal-overlay">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 id="modal-title">Novo Cliente</h3>
+            <button class="modal-close" onclick="fecharModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <form id="tenant-form">
+                <input type="hidden" id="tenant-id">
+
+                <!-- Dados gerais -->
+                <div class="form-section">
+                    <div class="form-section-title">Dados Gerais</div>
+                    <div class="form-group">
+                        <label for="nome">Nome do Cliente *</label>
+                        <input type="text" id="nome" placeholder="Ex: Locadora ABC" required>
+                    </div>
+                    <div class="form-check">
+                        <input type="checkbox" id="ativo" checked>
+                        <label for="ativo">Cliente ativo</label>
+                    </div>
+                </div>
+
+                <!-- Hinova -->
+                <div class="form-section">
+                    <div class="form-section-title">API Hinova (SGA)</div>
+                    <div class="form-group">
+                        <label for="hinova_token">Token API Hinova *</label>
+                        <input type="text" id="hinova_token" placeholder="Token gerado no SGA" required>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="hinova_usuario">Usuario SGA *</label>
+                            <input type="text" id="hinova_usuario" placeholder="Usuario de integracao" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="hinova_senha">Senha SGA *</label>
+                            <input type="password" id="hinova_senha" placeholder="Senha de integracao" required>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quepasa -->
+                <div class="form-section">
+                    <div class="form-section-title">API Quepasa (WhatsApp)</div>
+                    <div class="form-group">
+                        <label for="quepasa_token">Token Quepasa *</label>
+                        <input type="text" id="quepasa_token" placeholder="Token do bot Quepasa" required>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="quepasa_base_url">URL Base Quepasa</label>
+                            <input type="text" id="quepasa_base_url" placeholder="http://localhost:31000" value="http://localhost:31000">
+                        </div>
+                        <div class="form-group">
+                            <label for="whatsapp_destino">WhatsApp Destino *</label>
+                            <input type="text" id="whatsapp_destino" placeholder="5531999999999" required>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="fecharModal()">Cancelar</button>
+            <button class="btn btn-primary" onclick="salvarTenant()">Cadastrar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+const API = '';
+let editandoId = null;
+
+// ── Carregar lista ──────────────────────────────────────────────
+
+async function carregarTenants() {
+    const resp = await fetch(`${API}/tenants/`);
+    const tenants = await resp.json();
+    const container = document.getElementById('tenant-list');
+
+    if (tenants.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <p>Nenhum cliente cadastrado</p>
+                <button class="btn btn-primary" onclick="abrirModal()">Cadastrar primeiro cliente</button>
+            </div>`;
+        return;
+    }
+
+    container.innerHTML = tenants.map(t => {
+        const status = t.ultimo_status
+            ? `Ultimo envio: ${new Date(t.ultimo_envio).toLocaleString('pt-BR')} - ${t.ultimo_status}`
+            : 'Nenhum envio realizado';
+        return `
+        <div class="tenant-card">
+            <div class="tenant-info">
+                <h3>${t.nome}</h3>
+                <p>WhatsApp: ${t.whatsapp_destino} | Quepasa: ${t.quepasa_base_url}</p>
+                <p class="status-text">${status}</p>
+            </div>
+            <div class="tenant-actions">
+                <span class="badge ${t.ativo ? 'badge-active' : 'badge-inactive'}">
+                    ${t.ativo ? 'Ativo' : 'Inativo'}
+                </span>
+                <button class="btn btn-primary btn-sm" onclick="editarTenant('${t.id}')">Editar</button>
+                <button class="btn btn-danger btn-sm" onclick="excluirTenant('${t.id}', '${t.nome}')">Excluir</button>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+// ── Modal ───────────────────────────────────────────────────────
+
+function abrirModal() {
+    editandoId = null;
+    document.getElementById('modal-title').textContent = 'Novo Cliente';
+    document.getElementById('tenant-form').reset();
+    document.getElementById('ativo').checked = true;
+    document.getElementById('quepasa_base_url').value = 'http://localhost:31000';
+    document.getElementById('hinova_senha').required = true;
+    document.getElementById('modal-overlay').classList.add('active');
+}
+
+function fecharModal() {
+    document.getElementById('modal-overlay').classList.remove('active');
+}
+
+async function editarTenant(id) {
+    const resp = await fetch(`${API}/tenants/${id}`);
+    const t = await resp.json();
+
+    editandoId = id;
+    document.getElementById('modal-title').textContent = 'Editar Cliente';
+    document.getElementById('tenant-id').value = id;
+    document.getElementById('nome').value = t.nome;
+    document.getElementById('ativo').checked = t.ativo;
+    document.getElementById('quepasa_base_url').value = t.quepasa_base_url;
+    document.getElementById('whatsapp_destino').value = t.whatsapp_destino;
+
+    // Campos sensíveis ficam vazios na edição (já estão cifrados)
+    document.getElementById('hinova_token').value = '';
+    document.getElementById('hinova_usuario').value = '';
+    document.getElementById('hinova_senha').value = '';
+    document.getElementById('quepasa_token').value = '';
+
+    // Na edição, campos sensíveis não são obrigatórios
+    document.getElementById('hinova_token').required = false;
+    document.getElementById('hinova_usuario').required = false;
+    document.getElementById('hinova_senha').required = false;
+    document.getElementById('quepasa_token').required = false;
+
+    document.getElementById('modal-overlay').classList.add('active');
+}
+
+// ── Salvar ──────────────────────────────────────────────────────
+
+async function salvarTenant() {
+    const form = document.getElementById('tenant-form');
+    if (!form.checkValidity()) { form.reportValidity(); return; }
+
+    if (editandoId) {
+        // Edição: só envia campos preenchidos
+        const dados = {};
+        const nome = document.getElementById('nome').value;
+        const ativo = document.getElementById('ativo').checked;
+        const quepasa_base_url = document.getElementById('quepasa_base_url').value;
+        const whatsapp_destino = document.getElementById('whatsapp_destino').value;
+
+        dados.nome = nome;
+        dados.ativo = ativo;
+        if (quepasa_base_url) dados.quepasa_base_url = quepasa_base_url;
+        if (whatsapp_destino) dados.whatsapp_destino = whatsapp_destino;
+
+        // Campos sensíveis só se preenchidos
+        const hinova_token = document.getElementById('hinova_token').value;
+        const hinova_usuario = document.getElementById('hinova_usuario').value;
+        const hinova_senha = document.getElementById('hinova_senha').value;
+        const quepasa_token = document.getElementById('quepasa_token').value;
+        if (hinova_token) dados.hinova_token = hinova_token;
+        if (hinova_usuario) dados.hinova_usuario = hinova_usuario;
+        if (hinova_senha) dados.hinova_senha = hinova_senha;
+        if (quepasa_token) dados.quepasa_token = quepasa_token;
+
+        const resp = await fetch(`${API}/tenants/${editandoId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(dados),
+        });
+
+        if (resp.ok) {
+            toast('Cliente atualizado!', 'success');
+        } else {
+            toast('Erro ao atualizar', 'error');
+            return;
+        }
+    } else {
+        // Criação
+        const dados = {
+            nome: document.getElementById('nome').value,
+            hinova_token: document.getElementById('hinova_token').value,
+            hinova_usuario: document.getElementById('hinova_usuario').value,
+            hinova_senha: document.getElementById('hinova_senha').value,
+            quepasa_token: document.getElementById('quepasa_token').value,
+            quepasa_base_url: document.getElementById('quepasa_base_url').value || 'http://localhost:31000',
+            whatsapp_destino: document.getElementById('whatsapp_destino').value,
+        };
+
+        const resp = await fetch(`${API}/tenants/`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(dados),
+        });
+
+        if (resp.ok) {
+            toast('Cliente cadastrado!', 'success');
+        } else {
+            const err = await resp.json();
+            toast('Erro: ' + (err.detail || JSON.stringify(err)), 'error');
+            return;
+        }
+    }
+
+    fecharModal();
+    carregarTenants();
+}
+
+// ── Excluir ─────────────────────────────────────────────────────
+
+async function excluirTenant(id, nome) {
+    if (!confirm(`Tem certeza que deseja excluir "${nome}"?`)) return;
+
+    const resp = await fetch(`${API}/tenants/${id}`, { method: 'DELETE' });
+    if (resp.ok) {
+        toast('Cliente excluido!', 'success');
+        carregarTenants();
+    } else {
+        toast('Erro ao excluir', 'error');
+    }
+}
+
+// ── Toast ───────────────────────────────────────────────────────
+
+function toast(msg, type) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.className = `toast toast-${type} show`;
+    setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+// ── Fechar modal clicando fora ──────────────────────────────────
+
+document.getElementById('modal-overlay').addEventListener('click', function(e) {
+    if (e.target === this) fecharModal();
+});
+
+// ── Init ────────────────────────────────────────────────────────
+
+carregarTenants();
+</script>
+
+</body>
+</html>
