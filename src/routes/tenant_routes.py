@@ -1,6 +1,7 @@
 """Endpoints CRUD de Tenant (RF01, RF02, RNF01, RNF03)."""
 
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from src.database import get_db
@@ -12,6 +13,8 @@ from src.schemas.tenant_schema import (
     TenantStatusResponse,
 )
 from src.security.crypto import encrypt, decrypt
+from src.scheduler.job import _processar_tenant, _testar_tenant
+from src.quepasa.client import enviar_relatorio
 
 # Campos que devem ser cifrados no banco
 _CAMPOS_CIFRADOS = {"hinova_token", "hinova_senha", "quepasa_token"}
@@ -80,6 +83,87 @@ def remover_tenant(tenant_id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Tenant não encontrado")
     db.delete(tenant)
     db.commit()
+
+
+@router.post("/{tenant_id}/testar")
+def testar_relatorio(tenant_id: str, db: Session = Depends(get_db)):
+    """Testa o pipeline sem enviar — retorna a mensagem e logs."""
+    import logging
+    import io
+
+    tenant = db.query(Tenant).filter(Tenant.id == tenant_id).first()
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant não encontrado")
+
+    log_capture = io.StringIO()
+    handler = logging.StreamHandler(log_capture)
+    handler.setLevel(logging.DEBUG)
+    handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(message)s"))
+
+    root_logger = logging.getLogger()
+    root_logger.addHandler(handler)
+
+    try:
+        mensagem = _testar_tenant(tenant)
+        logs = log_capture.getvalue()
+        return {
+            "sucesso": bool(mensagem),
+            "mensagem": mensagem or "Falha ao gerar relatório.",
+            "logs": logs,
+        }
+    except Exception as e:
+        logs = log_capture.getvalue()
+        return {
+            "sucesso": False,
+            "mensagem": f"Erro: {str(e)}",
+            "logs": logs,
+        }
+    finally:
+        root_logger.removeHandler(handler)
+
+
+class MensagemDisparo(BaseModel):
+    """Mensagem já gerada para enviar ao WhatsApp."""
+    mensagem: str
+
+
+@router.post("/{tenant_id}/disparar")
+def disparar_relatorio(tenant_id: str, body: MensagemDisparo, db: Session = Depends(get_db)):
+    """Envia a mensagem já gerada ao WhatsApp (sem re-processar o pipeline)."""
+    import logging
+    import io
+
+    tenant = db.query(Tenant).filter(Tenant.id == tenant_id).first()
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant não encontrado")
+    if not tenant.ativo:
+        raise HTTPException(status_code=400, detail="Tenant está inativo")
+
+    log_capture = io.StringIO()
+    handler = logging.StreamHandler(log_capture)
+    handler.setLevel(logging.DEBUG)
+    handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(message)s"))
+
+    root_logger = logging.getLogger()
+    root_logger.addHandler(handler)
+
+    try:
+        sucesso = enviar_relatorio(db, tenant, tenant.quepasa_base_url, body.mensagem)
+        logs = log_capture.getvalue()
+        return {
+            "sucesso": sucesso,
+            "mensagem": "Relatório enviado com sucesso!" if sucesso else "Falha no envio ao WhatsApp.",
+            "logs": logs,
+        }
+    except Exception as e:
+        logs = log_capture.getvalue()
+        return {
+            "sucesso": False,
+            "mensagem": f"Erro: {str(e)}",
+            "logs": logs,
+        }
+    finally:
+        root_logger.removeHandler(handler)
 
 
 @router.get("/{tenant_id}/status", response_model=TenantStatusResponse)

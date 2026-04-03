@@ -31,7 +31,10 @@ e testável antes de avançar para a próxima.
    Aqui entra a RN01 (cálculo do mês corrente completo).
 
 4. **Etapa 4 em seguida** — Só faz sentido formatar e enviar quando temos dados
-   processados. A mensagem do WhatsApp é o produto final visível ao cliente.
+   processados. A mLocadora ABC
+WhatsApp: 5531999999999 | Quepasa: http://localhost:31000
+
+Nenhum envio realizado  ensagem do WhatsApp é o produto final visível ao cliente.
 
 5. **Etapa 5 por último** — O scheduler amarra tudo. Só automatiza o que já funciona.
 

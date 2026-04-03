@@ -89,54 +89,109 @@ def test_calcular_boletos_ignora_cancelados():
     assert pagos == Decimal("0.00")
 
 
+def test_calcular_boletos_status_pago_e_liquidado():
+    """Status PAGO e LIQUIDADO devem ser somados como pagos."""
+    boletos = [
+        {"situacao_boleto": "PAGO", "valor_boleto": "200.00"},
+        {"situacao_boleto": "Liquidado", "valor_boleto": "300.00"},
+        {"descricao_situacao_boleto": "BAIXADO", "valor_boleto": "100.00"},
+    ]
+    abertos, pagos = calcular_boletos(boletos)
+    assert pagos == Decimal("600.00")
+    assert abertos == Decimal("0.00")
+
+
+def test_calcular_boletos_ignora_estornado_excluido():
+    """Status ESTORNADO e EXCLUÍDO não entram em nenhuma soma."""
+    boletos = [
+        {"situacao": "ESTORNADO", "valor_boleto": "500.00"},
+        {"descricao_situacao": "Excluído", "valor_boleto": "300.00"},
+        {"descricao_situacao_boleto": "ABERTO", "valor_boleto": "100.00"},
+    ]
+    abertos, pagos = calcular_boletos(boletos)
+    assert abertos == Decimal("100.00")
+    assert pagos == Decimal("0.00")
+
+
+def test_calcular_boletos_campos_alternativos():
+    """Deve extrair status de campos alternativos (situacao, status_boleto)."""
+    boletos = [
+        {"situacao": "Aberto", "valor_boleto": "400.00"},
+        {"status_boleto": "Baixado", "valor_boleto": "200.00"},
+        {"status": "Pendente", "valor_boleto": "150.00"},
+    ]
+    abertos, pagos = calcular_boletos(boletos)
+    assert abertos == Decimal("550.00")
+    assert pagos == Decimal("200.00")
+
+
+def test_calcular_boletos_status_com_espacos():
+    """Status com espaços extras devem ser tratados corretamente."""
+    boletos = [
+        {"descricao_situacao_boleto": "  ABERTO  ", "valor_boleto": "100.00"},
+        {"descricao_situacao_boleto": " BAIXADO ", "valor_boleto": "200.00"},
+    ]
+    abertos, pagos = calcular_boletos(boletos)
+    assert abertos == Decimal("100.00")
+    assert pagos == Decimal("200.00")
+
+
 # ── Testes de processar (fluxo completo) ────────────────────────────
 
 
 def test_processar_dados_completos():
+    boletos = [
+        {"descricao_situacao_boleto": "ABERTO", "valor_boleto": "50000.00"},
+        {"descricao_situacao_boleto": "BAIXADO", "valor_boleto": "35000.00"},
+    ]
     dados = DadosHinova(
         total_ativos=1250,
         vendas_dia=5,
         cancelamentos_dia=2,
-        boletos=[
-            {"descricao_situacao_boleto": "ABERTO", "valor_boleto": "50000.00"},
-            {"descricao_situacao_boleto": "BAIXADO", "valor_boleto": "35000.00"},
-        ],
+        boletos_dia=boletos,
+        boletos_mes=boletos,
     )
     report = processar(dados)
 
     assert report.total_ativos == 1250
     assert report.vendas_hoje == 5
     assert report.cancelamentos_hoje == 2
-    assert report.valor_boletos_abertos == Decimal("50000.00")
-    assert report.valor_boletos_pagos == Decimal("35000.00")
-    assert report.valor_boletos_total == Decimal("85000.00")
-    assert report.percentual_conversao == Decimal("41.18")
+    # Dia
+    assert report.dia_abertos == Decimal("50000.00")
+    assert report.dia_pagos == Decimal("35000.00")
+    assert report.dia_percentual_pagos == Decimal("41.2")
+    # Mês
+    assert report.mes_abertos == Decimal("50000.00")
+    assert report.mes_pagos == Decimal("35000.00")
+    assert report.mes_percentual_pagos == Decimal("41.2")
 
 
 def test_processar_sem_boletos():
-    dados = DadosHinova(total_ativos=100, vendas_dia=0, cancelamentos_dia=0, boletos=[])
+    dados = DadosHinova(total_ativos=100, vendas_dia=0, cancelamentos_dia=0)
     report = processar(dados)
 
-    assert report.valor_boletos_abertos == Decimal("0.00")
-    assert report.valor_boletos_pagos == Decimal("0.00")
-    assert report.percentual_conversao == Decimal("0.00")
+    assert report.dia_abertos == Decimal("0.00")
+    assert report.mes_abertos == Decimal("0.00")
+    assert report.mes_percentual_pagos == Decimal("0.0")
 
 
 def test_processar_100_porcento_pago():
+    boletos = [{"descricao_situacao_boleto": "BAIXADO", "valor_boleto": "10000.00"}]
     dados = DadosHinova(
         total_ativos=50,
         vendas_dia=1,
         cancelamentos_dia=0,
-        boletos=[
-            {"descricao_situacao_boleto": "BAIXADO", "valor_boleto": "10000.00"},
-        ],
+        boletos_dia=boletos,
+        boletos_mes=boletos,
     )
     report = processar(dados)
-    assert report.percentual_conversao == Decimal("100.00")
+    assert report.dia_percentual_pagos == Decimal("100.0")
+    assert report.mes_percentual_pagos == Decimal("100.0")
 
 
 def test_processar_boletos_none():
     """Se boletos vier como None, deve tratar como lista vazia."""
-    dados = DadosHinova(total_ativos=10, boletos=None)
+    dados = DadosHinova(total_ativos=10)
     report = processar(dados)
-    assert report.valor_boletos_total == Decimal("0.00")
+    assert report.dia_total == Decimal("0.00")
+    assert report.mes_total == Decimal("0.00")

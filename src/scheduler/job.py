@@ -28,6 +28,37 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+def _testar_tenant(tenant: Tenant) -> str:
+    """Executa o pipeline sem enviar — retorna a mensagem formatada."""
+    logger.info("Testando pipeline para tenant: %s (%s)", tenant.nome, tenant.id)
+
+    hinova = HinovaClient(
+        token_api=tenant.get_hinova_token(),
+        usuario=tenant.hinova_usuario,
+        senha=tenant.get_hinova_senha(),
+    )
+
+    if not hinova.autenticar():
+        logger.error("Falha na autenticação Hinova para tenant %s", tenant.nome)
+        return ""
+
+    dados = DadosHinova(
+        total_ativos=hinova.buscar_ativos(),
+        vendas_dia=hinova.buscar_vendas_dia(),
+        cancelamentos_dia=hinova.buscar_cancelamentos_dia(),
+        boletos_dia=hinova.buscar_boletos_dia(),
+        boletos_mes=hinova.buscar_boletos_mes(),
+    )
+
+    if not dados.coleta_ok:
+        logger.warning("Nenhum dado coletado para tenant %s", tenant.nome)
+
+    report = processar(dados)
+    mensagem = formatar_relatorio(tenant.nome, report)
+    logger.info("Teste concluído — mensagem gerada com sucesso.")
+    return mensagem
+
+
 def _processar_tenant(db, tenant: Tenant) -> bool:
     """Executa o pipeline completo para um único tenant.
 
@@ -52,7 +83,8 @@ def _processar_tenant(db, tenant: Tenant) -> bool:
         total_ativos=hinova.buscar_ativos(),
         vendas_dia=hinova.buscar_vendas_dia(),
         cancelamentos_dia=hinova.buscar_cancelamentos_dia(),
-        boletos=hinova.buscar_boletos_mes(),
+        boletos_dia=hinova.buscar_boletos_dia(),
+        boletos_mes=hinova.buscar_boletos_mes(),
     )
 
     if not dados.coleta_ok:
@@ -112,6 +144,6 @@ def run_daily_report() -> None:
 
 if __name__ == "__main__":
     scheduler = BlockingScheduler()
-    scheduler.add_job(run_daily_report, "cron", hour=16, minute=30)
-    logger.info("Scheduler iniciado — relatório agendado para 16:30 diariamente.")
+    scheduler.add_job(run_daily_report, "cron", hour=19, minute=0)
+    logger.info("Scheduler iniciado — relatório agendado para 19:00 diariamente.")
     scheduler.start()

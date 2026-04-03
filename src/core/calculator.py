@@ -39,17 +39,20 @@ def _valor_boleto(boleto: dict) -> Decimal:
 
 
 def _status_boleto(boleto: dict) -> str:
-    """Extrai o status de um boleto."""
+    """Extrai o status de um boleto (normalizado para UPPER)."""
     return (
         boleto.get("descricao_situacao_boleto")
+        or boleto.get("situacao_boleto")
+        or boleto.get("situacao")
+        or boleto.get("descricao_situacao")
         or boleto.get("status_boleto")
         or boleto.get("status")
         or ""
-    )
+    ).strip()
 
 
 def calcular_boletos(boletos: list[dict]) -> tuple[Decimal, Decimal]:
-    """Soma boletos abertos e pagos.
+    """Soma boletos abertos e pagos (ignora cancelados/excluídos).
 
     Returns:
         (valor_abertos, valor_pagos)
@@ -57,16 +60,22 @@ def calcular_boletos(boletos: list[dict]) -> tuple[Decimal, Decimal]:
     abertos = Decimal("0.00")
     pagos = Decimal("0.00")
 
+    contadores: dict[str, int] = {}
+
     for boleto in boletos:
-        status = _status_boleto(boleto)
+        status = _status_boleto(boleto).upper()
         valor = _valor_boleto(boleto)
 
-        if status == _STATUS_PAGO:
+        contadores[status] = contadores.get(status, 0) + 1
+
+        if status in (_STATUS_PAGO, "PAGO", "LIQUIDADO"):
             pagos += valor
-        elif status != _STATUS_CANCELADO:
-            # Tudo que não é BAIXADO nem CANCELADO é considerado aberto
+        elif status in (_STATUS_CANCELADO, "ESTORNADO", "EXCLUIDO", "EXCLUÍDO"):
+            pass  # Ignorar cancelados/estornados/excluídos
+        else:
             abertos += valor
 
+    logger.info("Distribuição de status dos boletos: %s", contadores)
     return abertos, pagos
 
 
@@ -76,23 +85,26 @@ def processar(dados: DadosHinova) -> ReportData:
     Entrada: DadosHinova (coletados na Etapa 2)
     Saída:   ReportData  (pronto para formatar na Etapa 4)
     """
-    abertos, pagos = calcular_boletos(dados.boletos or [])
+    dia_abertos, dia_pagos = calcular_boletos(dados.boletos_dia or [])
+    mes_abertos, mes_pagos = calcular_boletos(dados.boletos_mes or [])
 
     report = ReportData(
         total_ativos=dados.total_ativos,
         vendas_hoje=dados.vendas_dia,
         cancelamentos_hoje=dados.cancelamentos_dia,
-        valor_boletos_abertos=abertos,
-        valor_boletos_pagos=pagos,
+        dia_abertos=dia_abertos,
+        dia_pagos=dia_pagos,
+        mes_abertos=mes_abertos,
+        mes_pagos=mes_pagos,
     )
 
     logger.info(
-        "Relatório calculado: ativos=%d vendas=%d cancel=%d aberto=R$%s pago=R$%s (%s%%)",
+        "Relatório calculado: ativos=%d vendas=%d cancel=%d "
+        "dia(aberto=R$%s pago=R$%s) mes(aberto=R$%s pago=R$%s)",
         report.total_ativos,
         report.vendas_hoje,
         report.cancelamentos_hoje,
-        report.valor_boletos_abertos,
-        report.valor_boletos_pagos,
-        report.percentual_conversao,
+        report.dia_abertos, report.dia_pagos,
+        report.mes_abertos, report.mes_pagos,
     )
     return report

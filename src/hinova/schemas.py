@@ -10,7 +10,8 @@ class DadosHinova:
     total_ativos: int = 0
     vendas_dia: int = 0
     cancelamentos_dia: int = 0
-    boletos: list[dict] | None = None
+    boletos_dia: list[dict] | None = None
+    boletos_mes: list[dict] | None = None
 
     @property
     def coleta_ok(self) -> bool:
@@ -19,5 +20,6 @@ class DadosHinova:
             self.total_ativos > 0
             or self.vendas_dia > 0
             or self.cancelamentos_dia > 0
-            or bool(self.boletos)
+            or bool(self.boletos_dia)
+            or bool(self.boletos_mes)
         )

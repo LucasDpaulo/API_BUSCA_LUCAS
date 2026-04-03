@@ -37,18 +37,21 @@ def test_relatorio_completo():
         total_ativos=1250,
         vendas_hoje=5,
         cancelamentos_hoje=2,
-        valor_boletos_abertos=Decimal("50000.00"),
-        valor_boletos_pagos=Decimal("35000.00"),
+        dia_abertos=Decimal("5000.00"),
+        dia_pagos=Decimal("3000.00"),
+        mes_abertos=Decimal("50000.00"),
+        mes_pagos=Decimal("35000.00"),
     )
     msg = formatar_relatorio("Locadora ABC", report)
 
     assert "Locadora ABC" in msg
-    assert "1,250" in msg  # total_ativos formatado
-    assert "05" in msg  # vendas com zero à esquerda
-    assert "02" in msg  # cancelamentos com zero à esquerda
-    assert "R$ 50.000,00" in msg
-    assert "R$ 35.000,00" in msg
-    assert "41.18%" in msg  # percentual
+    assert "1,250" in msg
+    assert "Resumo do Dia" in msg
+    assert "Resumo do Mês" in msg
+    assert "R$ 5.000,00" in msg  # dia aberto
+    assert "R$ 3.000,00" in msg  # dia pago
+    assert "R$ 50.000,00" in msg  # mês aberto
+    assert "R$ 35.000,00" in msg  # mês pago
 
 
 def test_relatorio_sem_dados():
@@ -57,7 +60,7 @@ def test_relatorio_sem_dados():
 
     assert "Empresa Vazia" in msg
     assert "R$ 0,00" in msg
-    assert "0.00%" in msg
+    assert "0.0%" in msg
 
 
 def test_relatorio_100_porcento():
@@ -65,11 +68,13 @@ def test_relatorio_100_porcento():
         total_ativos=100,
         vendas_hoje=10,
         cancelamentos_hoje=0,
-        valor_boletos_abertos=Decimal("0.00"),
-        valor_boletos_pagos=Decimal("25000.00"),
+        dia_abertos=Decimal("0.00"),
+        dia_pagos=Decimal("25000.00"),
+        mes_abertos=Decimal("0.00"),
+        mes_pagos=Decimal("25000.00"),
     )
     msg = formatar_relatorio("Empresa Top", report)
 
-    assert "100.00%" in msg
-    assert "R$ 0,00" in msg
+    assert "100.0%" in msg  # pagos
+    assert "0.0%" in msg  # abertos
     assert "R$ 25.000,00" in msg

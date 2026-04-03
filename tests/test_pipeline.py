@@ -29,6 +29,10 @@ def test_processar_tenant_sucesso(mock_hinova_cls, mock_enviar):
     mock_hinova.buscar_ativos.return_value = 100
     mock_hinova.buscar_vendas_dia.return_value = 5
     mock_hinova.buscar_cancelamentos_dia.return_value = 1
+    mock_hinova.buscar_boletos_dia.return_value = [
+        {"status_boleto": "Aberto", "valor_boleto": "1000.00"},
+        {"status_boleto": "Baixado", "valor_boleto": "500.00"},
+    ]
     mock_hinova.buscar_boletos_mes.return_value = [
         {"status_boleto": "Aberto", "valor_boleto": "1000.00"},
         {"status_boleto": "Baixado", "valor_boleto": "500.00"},
@@ -72,6 +76,7 @@ def test_processar_tenant_falha_envio(mock_hinova_cls, mock_enviar):
     mock_hinova.buscar_ativos.return_value = 50
     mock_hinova.buscar_vendas_dia.return_value = 0
     mock_hinova.buscar_cancelamentos_dia.return_value = 0
+    mock_hinova.buscar_boletos_dia.return_value = []
     mock_hinova.buscar_boletos_mes.return_value = []
     mock_hinova_cls.return_value = mock_hinova
 
