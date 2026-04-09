@@ -32,11 +32,14 @@ class HinovaClient:
         """Faz POST e retorna o JSON. Re-autentica em caso de 401."""
         url = f"{BASE_URL}/{endpoint}"
         try:
-            resp = requests.post(url, json=payload, headers=self._headers(), timeout=120)
+            resp = requests.post(url, json=payload, headers=self._headers(), timeout=240)
             if resp.status_code == 401 and "autenticar" not in endpoint:
                 logger.warning("Token expirado, re-autenticando...")
                 if self.autenticar():
-                    resp = requests.post(url, json=payload, headers=self._headers(), timeout=120)
+                    resp = requests.post(url, json=payload, headers=self._headers(), timeout=240)
+            if resp.status_code == 406:
+                logger.info("Nenhum resultado encontrado em %s (406)", endpoint)
+                return None
             resp.raise_for_status()
             return resp.json()
         except requests.RequestException as e:
@@ -221,46 +224,103 @@ class HinovaClient:
 
     # ── RF06: Resumo Financeiro (Boletos) ───────────────────────────
 
+    def _buscar_boletos_pagina(
+        self, mes_ref: str | None, data_ini: str, data_fim: str,
+        page_size: int, pagina: int,
+    ) -> tuple[list[dict], int]:
+        """Faz uma única requisição de boletos.
+
+        Args:
+            pagina: índice da página (0, 1, 2, 3...) conforme doc Hinova.
+
+        Returns:
+            (lista_boletos, total_paginas) — total_paginas=0 se não informado.
+        """
+        payload = {
+            "data_vencimento_inicial": data_ini,
+            "data_vencimento_final": data_fim,
+            "quantidade_por_pagina": page_size,
+            "inicio_paginacao": pagina,
+        }
+        if mes_ref:
+            payload["mes_referente"] = mes_ref
+
+        data = self._post("listar/boleto-associado/periodo", payload)
+        if not data:
+            return [], 0
+
+        if isinstance(data, list):
+            return data, 0
+        if isinstance(data, dict):
+            total_registros = data.get("total_registros", 0)
+            num_paginas = int(data.get("numero_paginas", 0))
+            pagina_corrente = data.get("pagina_corrente", pagina)
+            if total_registros:
+                logger.info(
+                    "API: total_registros=%s numero_paginas=%s pagina_corrente=%s",
+                    total_registros, num_paginas, pagina_corrente,
+                )
+            boletos = data.get("boletos", [])
+            if not boletos and "valor_boleto" in data:
+                return [data], 1
+            return boletos, num_paginas
+        return [], 0
+
     def _buscar_boletos_periodo(
         self, mes_ref: str | None, data_ini: str, data_fim: str,
     ) -> list[dict]:
-        """Busca boletos de um período com paginação completa."""
-        todos: list[dict] = []
-        pagina = 0
-        page_size = 100
-        max_paginas = 50
+        """Busca TODOS os boletos do mês paginando em blocos.
+
+        A API Hinova usa inicio_paginacao como ÍNDICE DE PÁGINA (0, 1, 2, 3...),
+        NÃO como offset absoluto. Pagina até cobrir todas as páginas.
+        Filtra boletos CANCELADOS do resultado.
+        """
+        page_size = 500
+        logger.info("Buscando boletos página 0 (tam=%d) ...", page_size)
+        boletos, num_paginas = self._buscar_boletos_pagina(mes_ref, data_ini, data_fim, page_size, 0)
+
+        if not boletos:
+            # 500 não funcionou, tenta 100
+            page_size = 100
+            logger.info("Página de 500 sem resultados, tentando tam=%d ...", page_size)
+            boletos, num_paginas = self._buscar_boletos_pagina(mes_ref, data_ini, data_fim, page_size, 0)
+
+        if not boletos:
+            logger.info("Nenhum boleto encontrado no período %s a %s", data_ini, data_fim)
+            return []
+
+        todos = list(boletos)
+        logger.info("Página 0: %d boletos recebidos (tam_página=%d, total_páginas=%d)", len(boletos), page_size, num_paginas)
+
+        # Paginar o resto — inicio_paginacao = 1, 2, 3 ...
+        pagina = 1
+        max_paginas = num_paginas if num_paginas > 0 else 200
 
         while pagina < max_paginas:
-            payload = {
-                "data_vencimento_inicial": data_ini,
-                "data_vencimento_final": data_fim,
-                "quantidade_por_pagina": page_size,
-                "inicio_paginacao": pagina,
-            }
-            if mes_ref:
-                payload["mes_referente"] = mes_ref
-            data = self._post("listar/boleto-associado/periodo", payload)
-            if not data:
+            logger.info("Buscando boletos página %d/%d (tam=%d) ...", pagina, max_paginas, page_size)
+            boletos_pag, _ = self._buscar_boletos_pagina(mes_ref, data_ini, data_fim, page_size, pagina)
+
+            if not boletos_pag:
                 break
 
-            if isinstance(data, list):
-                boletos = data
-            elif isinstance(data, dict):
-                boletos = data.get("boletos", [])
-                if not boletos and "valor_boleto" in data:
-                    boletos = [data]
-            else:
-                break
+            todos.extend(boletos_pag)
+            logger.info("Página %d: %d recebidos | Acumulado: %d", pagina, len(boletos_pag), len(todos))
 
-            if not boletos:
-                break
-
-            todos.extend(boletos)
-
-            if len(boletos) < page_size:
+            if len(boletos_pag) < page_size:
                 break
 
             pagina += 1
+
+        logger.info("Total bruto de boletos recebidos: %d", len(todos))
+
+        # Filtra CANCELADOS — não entram no cálculo financeiro
+        antes = len(todos)
+        todos = [
+            b for b in todos
+            if self._status_boleto_upper(b) != "CANCELADO"
+        ]
+        if antes != len(todos):
+            logger.info("Removidos %d boletos CANCELADOS (%d → %d)", antes - len(todos), antes, len(todos))
 
         return todos
 

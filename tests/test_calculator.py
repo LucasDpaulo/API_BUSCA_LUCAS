@@ -140,15 +140,16 @@ def test_calcular_boletos_status_com_espacos():
 
 
 def test_processar_dados_completos():
+    from datetime import date
+    hoje = date.today().strftime("%Y-%m-%d")
     boletos = [
-        {"descricao_situacao_boleto": "ABERTO", "valor_boleto": "50000.00"},
-        {"descricao_situacao_boleto": "BAIXADO", "valor_boleto": "35000.00"},
+        {"situacao_boleto": "ABERTO", "valor_boleto": "50000.00", "data_emissao": hoje, "data_vencimento": "2026-04-20"},
+        {"situacao_boleto": "BAIXADO", "valor_boleto": "35000.00", "data_pagamento": hoje, "data_emissao": "2025-01-01"},
     ]
     dados = DadosHinova(
         total_ativos=1250,
         vendas_dia=5,
         cancelamentos_dia=2,
-        boletos_dia=boletos,
         boletos_mes=boletos,
     )
     report = processar(dados)
@@ -156,7 +157,7 @@ def test_processar_dados_completos():
     assert report.total_ativos == 1250
     assert report.vendas_hoje == 5
     assert report.cancelamentos_hoje == 2
-    # Dia
+    # Dia (emitidos hoje abertos + pagos hoje)
     assert report.dia_abertos == Decimal("50000.00")
     assert report.dia_pagos == Decimal("35000.00")
     assert report.dia_percentual_pagos == Decimal("41.2")
@@ -176,12 +177,13 @@ def test_processar_sem_boletos():
 
 
 def test_processar_100_porcento_pago():
-    boletos = [{"descricao_situacao_boleto": "BAIXADO", "valor_boleto": "10000.00"}]
+    from datetime import date
+    hoje = date.today().strftime("%Y-%m-%d")
+    boletos = [{"descricao_situacao_boleto": "BAIXADO", "valor_boleto": "10000.00", "data_pagamento": hoje}]
     dados = DadosHinova(
         total_ativos=50,
         vendas_dia=1,
         cancelamentos_dia=0,
-        boletos_dia=boletos,
         boletos_mes=boletos,
     )
     report = processar(dados)

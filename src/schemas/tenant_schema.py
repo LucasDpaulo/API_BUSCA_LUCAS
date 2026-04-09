@@ -49,6 +49,37 @@ class TenantResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class TenantDetailResponse(BaseModel):
+    """Resposta com dados completos do tenant (incluindo credenciais para edição)."""
+
+    id: str
+    nome: str
+    hinova_token: str
+    hinova_usuario: str
+    hinova_senha: str
+    quepasa_token: str
+    quepasa_base_url: str
+    whatsapp_destino: str
+    ativo: bool
+    ultimo_envio: datetime | None
+    ultimo_status: str | None
+    criado_em: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class TestHistoryResponse(BaseModel):
+    """Um registro do histórico de testes."""
+
+    id: str
+    sucesso: bool
+    mensagem: str
+    logs: str | None
+    criado_em: datetime
+
+    model_config = {"from_attributes": True}
+
+
 class TenantStatusResponse(BaseModel):
     """Resposta do endpoint de status (RNF03)."""
 

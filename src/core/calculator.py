@@ -79,14 +79,54 @@ def calcular_boletos(boletos: list[dict]) -> tuple[Decimal, Decimal]:
     return abertos, pagos
 
 
+def _filtrar_pagos_hoje(boletos: list[dict], referencia: date | None = None) -> list[dict]:
+    """Filtra boletos do mês que foram pagos hoje (por data_pagamento)."""
+    hoje_str = (referencia or date.today()).strftime("%Y-%m-%d")
+    pagos_hoje = []
+    for b in boletos:
+        data_pgto = b.get("data_pagamento")
+        if data_pgto and str(data_pgto).startswith(hoje_str):
+            pagos_hoje.append(b)
+    return pagos_hoje
+
+
+def _filtrar_abertos_hoje(boletos: list[dict], referencia: date | None = None) -> list[dict]:
+    """Filtra boletos emitidos hoje que ainda estão abertos (por data_emissao)."""
+    hoje = referencia or date.today()
+    hoje_iso = hoje.strftime("%Y-%m-%d")       # "2026-04-09"
+    hoje_br = hoje.strftime("%d/%m/%Y")         # "09/04/2026"
+    abertos = []
+    for b in boletos:
+        data_emissao = str(b.get("data_emissao") or "")
+        if data_emissao.startswith(hoje_iso) or data_emissao.startswith(hoje_br):
+            status = (
+                b.get("situacao_boleto")
+                or b.get("descricao_situacao_boleto")
+                or b.get("status")
+                or ""
+            ).strip().upper()
+            if status not in ("BAIXADO", "PAGO", "LIQUIDADO", "CANCELADO", "ESTORNADO", "EXCLUIDO", "EXCLUÍDO"):
+                abertos.append(b)
+    return abertos
+
+
 def processar(dados: DadosHinova) -> ReportData:
     """Transforma dados brutos da Hinova em métricas do relatório.
 
     Entrada: DadosHinova (coletados na Etapa 2)
     Saída:   ReportData  (pronto para formatar na Etapa 4)
     """
-    dia_abertos, dia_pagos = calcular_boletos(dados.boletos_dia or [])
-    mes_abertos, mes_pagos = calcular_boletos(dados.boletos_mes or [])
+    boletos_mes = dados.boletos_mes or []
+
+    # Resumo do dia: pagos hoje (data_pagamento) + emitidos hoje ainda abertos (data_emissao)
+    pagos_hoje = _filtrar_pagos_hoje(boletos_mes)
+    abertos_hoje = _filtrar_abertos_hoje(boletos_mes)
+    logger.info("Boletos pagos hoje: %d | Abertos (emitidos hoje): %d", len(pagos_hoje), len(abertos_hoje))
+
+    _, dia_pagos = calcular_boletos(pagos_hoje)
+    dia_abertos, _ = calcular_boletos(abertos_hoje)
+
+    mes_abertos, mes_pagos = calcular_boletos(boletos_mes)
 
     report = ReportData(
         total_ativos=dados.total_ativos,

@@ -46,7 +46,6 @@ def _testar_tenant(tenant: Tenant) -> str:
         total_ativos=hinova.buscar_ativos(),
         vendas_dia=hinova.buscar_vendas_dia(),
         cancelamentos_dia=hinova.buscar_cancelamentos_dia(),
-        boletos_dia=hinova.buscar_boletos_dia(),
         boletos_mes=hinova.buscar_boletos_mes(),
     )
 
@@ -83,7 +82,6 @@ def _processar_tenant(db, tenant: Tenant) -> bool:
         total_ativos=hinova.buscar_ativos(),
         vendas_dia=hinova.buscar_vendas_dia(),
         cancelamentos_dia=hinova.buscar_cancelamentos_dia(),
-        boletos_dia=hinova.buscar_boletos_dia(),
         boletos_mes=hinova.buscar_boletos_mes(),
     )
 

@@ -39,7 +39,10 @@ import {
   Lock,
   User,
   LogOut,
-  ArrowRight
+  ArrowRight,
+  History,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 
 const App = () => {
@@ -58,6 +61,11 @@ const App = () => {
   const [isTesting, setIsTesting] = useState(false);
   const [confirmDisparo, setConfirmDisparo] = useState(false);
   const [confirmCountdown, setConfirmCountdown] = useState(10);
+  const [testHistory, setTestHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [expandedHistory, setExpandedHistory] = useState(null);
+  const [historyDetailTab, setHistoryDetailTab] = useState('message');
+  const [historyFullView, setHistoryFullView] = useState(null);
 
   useEffect(() => {
     if (!confirmDisparo) return;
@@ -174,12 +182,45 @@ const App = () => {
     setIsSidebarOpen(true);
   };
 
-  const handleOpenEdit = (tenant) => {
+  const handleOpenEdit = async (tenant) => {
     setModalMode('edit');
     setFormData({ ...tenant });
     setIsModalOpen(true);
     setIsClosing(false);
     setIsSidebarOpen(true);
+    try {
+      const res = await fetch(`${API_BASE}/tenants/${tenant.id}/detalhe`);
+      if (res.ok) {
+        const d = await res.json();
+        setFormData(prev => ({
+          ...prev,
+          name: d.nome,
+          apiToken: d.hinova_token,
+          sgaUser: d.hinova_usuario,
+          sgaPass: d.hinova_senha,
+          quepasaToken: d.quepasa_token,
+          url: d.quepasa_base_url,
+          whatsapp: d.whatsapp_destino,
+          isActive: d.ativo,
+        }));
+      }
+    } catch (err) {
+      console.error('Erro ao carregar detalhes:', err);
+    }
+  };
+
+  const fetchHistory = async (tenantId) => {
+    setHistoryLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/tenants/${tenantId}/historico`);
+      if (res.ok) {
+        setTestHistory(await res.json());
+      }
+    } catch (err) {
+      console.error('Erro ao carregar histórico:', err);
+    } finally {
+      setHistoryLoading(false);
+    }
   };
 
   const handleOpenReport = (tenant) => {
@@ -189,6 +230,8 @@ const App = () => {
     setIsClosing(false);
     setIsSidebarOpen(true);
     setReportTab('message');
+    setExpandedHistory(null);
+    fetchHistory(tenant.id);
   };
 
   const handleSave = async (e) => {
@@ -374,6 +417,7 @@ const App = () => {
       } else {
         addLog(data.mensagem || data.detail || 'Falha na operação.', 'ERROR');
       }
+      if (opType === 'test') fetchHistory(formData.id);
     } catch (err) {
       if (err.name === 'AbortError') return;
       addLog('Erro de conexão com o backend: ' + err.message, 'ERROR');
@@ -700,60 +744,199 @@ const App = () => {
                     <div className="space-y-10 h-full flex flex-col">
                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 px-1">
                         <div className="flex items-center gap-6 flex-1">
-                          <span className={`text-xs font-black tracking-[0.4em] uppercase text-[#718878] whitespace-nowrap italic transition-all duration-500 ${!isSidebarOpen ? 'pl-10' : ''}`}>{reportTab === 'message' ? 'Teste de Mensagem' : 'Console de Sistema'}</span>
+                          <span className={`text-xs font-black tracking-[0.4em] uppercase text-[#718878] whitespace-nowrap italic transition-all duration-500 ${!isSidebarOpen ? 'pl-10' : ''}`}>{reportTab === 'message' ? 'Teste de Mensagem' : reportTab === 'logs' ? 'Console de Sistema' : 'Histórico de Testes'}</span>
                           <div className="h-[2px] w-full bg-[#F3F8F4]" />
                         </div>
                         <div className="flex bg-[#F3F8F4] p-1.5 rounded-2xl border border-[#244235]/5 shadow-inner self-start z-10">
-                          <button onClick={() => setReportTab('message')} className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${reportTab === 'message' ? 'bg-[#244235] text-white shadow-lg' : 'text-[#718878] hover:text-[#244235]'}`}><FlaskConical size={14} /> Teste</button>
-                          <button onClick={() => setReportTab('logs')} className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${reportTab === 'logs' ? 'bg-[#111A17] text-white shadow-lg' : 'text-[#718878] hover:text-[#111A17]'}`}><Terminal size={14} /> Logs</button>
+                          <button onClick={() => setReportTab('message')} className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all duration-300 ${reportTab === 'message' ? 'bg-[#244235] text-white shadow-lg scale-105' : 'text-[#718878] hover:text-[#244235] scale-100'}`}><FlaskConical size={14} /> Teste</button>
+                          <button onClick={() => setReportTab('logs')} className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all duration-300 ${reportTab === 'logs' ? 'bg-[#111A17] text-white shadow-lg scale-105' : 'text-[#718878] hover:text-[#111A17] scale-100'}`}><Terminal size={14} /> Logs</button>
+                          <button onClick={() => { setReportTab('history'); fetchHistory(formData.id); }} className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all duration-300 ${reportTab === 'history' ? 'bg-[#244235] text-white shadow-lg scale-105' : 'text-[#718878] hover:text-[#244235] scale-100'}`}><History size={14} /> Histórico</button>
                         </div>
                       </div>
 
-                      <div className={`rounded-[3rem] p-8 lg:p-10 relative overflow-hidden shadow-2xl border-l-[12px] flex-shrink-0 transition-all duration-500 min-h-[300px] ${reportTab === 'logs' ? 'bg-[#111A17] border-[#244235]' : 'bg-[#F3F8F4] border-[#111A17]'}`}>
-                        <div className="absolute top-0 right-0 p-8 opacity-[0.03] pointer-events-none">{reportTab === 'logs' ? <Code size={140} className="text-white" /> : <MessageSquare size={140} className="text-[#111A17]" />}</div>
-                        <div className="relative z-10 flex justify-between items-start mb-6">
-                           <div className={`px-4 py-1.5 rounded-xl border inline-flex items-center gap-2 ${reportTab === 'logs' ? 'bg-[#244235]/20 border-[#244235]/40 text-white' : 'bg-[#111A17]/10 border-[#111A17]/20 text-[#111A17]'}`}>
-                              <div className={`h-1.5 w-1.5 rounded-full animate-pulse ${reportTab === 'logs' ? 'bg-emerald-500' : 'bg-[#111A17]'}`} />
-                              <span className="text-[9px] font-black uppercase tracking-widest">{reportTab === 'logs' ? 'Pipeline Ativo' : 'Preview da Mensagem'}</span>
-                           </div>
-                           <div className="flex items-center gap-2">
-                             {reportTab === 'logs' && <button onClick={clearLogs} className="text-[#718878] hover:text-rose-500 p-2 transition-colors" title="Limpar logs"><Trash2 size={16} /></button>}
-                             <button onClick={handleCopyReport} className="text-[#718878] hover:text-[#111A17] p-2 transition-colors" title="Copiar"><Copy size={16} /></button>
-                           </div>
-                        </div>
-                        <pre className={`relative z-10 text-base whitespace-pre-wrap opacity-95 ${reportTab === 'logs' ? 'text-[#F3F8F4] font-mono text-sm' : 'text-[#111A17] font-sans font-medium italic'}`}>{reportTab === 'logs' ? formData.technicalLog : formData.lastReport}</pre>
-                      </div>
-
-                      <div className="flex flex-col items-start gap-6 w-full">
-                         {reportTab === 'message' && (
-                            <div className="flex flex-wrap items-center gap-4">
-                               {!isTesting ? (
-                                 <>
-                                   <button onClick={handleTest} className="flex items-center gap-3 px-8 py-4 rounded-[2rem] font-black uppercase text-xs tracking-[0.2em] transition-all duration-300 shadow-xl active:scale-95 bg-[#244235] text-white hover:bg-[#111A17]">
-                                     <FlaskConical size={18} />
-                                     <span>Testar / Verificação de Dados</span>
-                                   </button>
-                                   <button onClick={handleSendRequest} className="flex items-center gap-3 px-8 py-4 rounded-[2rem] font-black uppercase text-xs tracking-[0.2em] transition-all duration-300 shadow-xl active:scale-95 bg-[#111A17] text-white hover:bg-[#244235]">
-                                     <SendHorizontal size={18} />
-                                     <span>Disparar para WhatsApp</span>
-                                   </button>
-                                 </>
-                               ) : (
-                                 <>
-                                   <div className="flex items-center gap-3 px-8 py-4 rounded-[2rem] bg-amber-50 border-2 border-amber-200 text-amber-700 font-black uppercase text-xs tracking-[0.2em]">
-                                     <Loader2 size={18} className="animate-spin" />
-                                     <span>{operationType === 'test' ? 'Testando...' : 'Enviando...'}</span>
-                                     <span className="font-mono text-sm">{formatTime(elapsedTime)}</span>
-                                   </div>
-                                   <button onClick={handleCancel} className="flex items-center gap-3 px-8 py-4 rounded-[2rem] font-black uppercase text-xs tracking-[0.2em] transition-all duration-300 shadow-xl active:scale-95 bg-rose-600 text-white hover:bg-rose-700">
-                                     <X size={18} />
-                                     <span>Parar</span>
-                                   </button>
-                                 </>
-                               )}
+                      {reportTab !== 'history' ? (
+                        <div key={reportTab} className="animate-tab-fade-in">
+                          <div className={`rounded-[3rem] p-8 lg:p-10 relative overflow-hidden shadow-2xl border-l-[12px] flex-shrink-0 transition-all duration-500 min-h-[300px] ${reportTab === 'logs' ? 'bg-[#111A17] border-[#244235]' : 'bg-[#F3F8F4] border-[#111A17]'}`}>
+                            <div className="absolute top-0 right-0 p-8 opacity-[0.03] pointer-events-none">{reportTab === 'logs' ? <Code size={140} className="text-white" /> : <MessageSquare size={140} className="text-[#111A17]" />}</div>
+                            <div className="relative z-10 flex justify-between items-start mb-6">
+                               <div className={`px-4 py-1.5 rounded-xl border inline-flex items-center gap-2 ${reportTab === 'logs' ? 'bg-[#244235]/20 border-[#244235]/40 text-white' : 'bg-[#111A17]/10 border-[#111A17]/20 text-[#111A17]'}`}>
+                                  <div className={`h-1.5 w-1.5 rounded-full animate-pulse ${reportTab === 'logs' ? 'bg-emerald-500' : 'bg-[#111A17]'}`} />
+                                  <span className="text-[9px] font-black uppercase tracking-widest">{reportTab === 'logs' ? 'Pipeline Ativo' : 'Preview da Mensagem'}</span>
+                               </div>
+                               <div className="flex items-center gap-2">
+                                 {reportTab === 'logs' && <button onClick={clearLogs} className="text-[#718878] hover:text-rose-500 p-2 transition-colors" title="Limpar logs"><Trash2 size={16} /></button>}
+                                 <button onClick={handleCopyReport} className="text-[#718878] hover:text-[#111A17] p-2 transition-colors" title="Copiar"><Copy size={16} /></button>
+                               </div>
                             </div>
-                         )}
-                      </div>
+                            <pre className={`relative z-10 text-base whitespace-pre-wrap opacity-95 ${reportTab === 'logs' ? 'text-[#F3F8F4] font-mono text-sm' : 'text-[#111A17] font-sans font-medium italic'}`}>{reportTab === 'logs' ? formData.technicalLog : formData.lastReport}</pre>
+                          </div>
+
+                          <div className="flex flex-col items-start gap-6 w-full mt-4">
+                             {reportTab === 'message' && (
+                                <div className="flex flex-wrap items-center gap-4">
+                                   {!isTesting ? (
+                                     <>
+                                       <button onClick={handleTest} className="flex items-center gap-3 px-8 py-4 rounded-[2rem] font-black uppercase text-xs tracking-[0.2em] transition-all duration-300 shadow-xl active:scale-95 bg-[#244235] text-white hover:bg-[#111A17]">
+                                         <FlaskConical size={18} />
+                                         <span>Testar / Verificação de Dados</span>
+                                       </button>
+                                       <button onClick={handleSendRequest} className="flex items-center gap-3 px-8 py-4 rounded-[2rem] font-black uppercase text-xs tracking-[0.2em] transition-all duration-300 shadow-xl active:scale-95 bg-[#111A17] text-white hover:bg-[#244235]">
+                                         <SendHorizontal size={18} />
+                                         <span>Disparar para WhatsApp</span>
+                                       </button>
+                                     </>
+                                   ) : (
+                                     <>
+                                       <div className="flex items-center gap-3 px-8 py-4 rounded-[2rem] bg-amber-50 border-2 border-amber-200 text-amber-700 font-black uppercase text-xs tracking-[0.2em]">
+                                         <Loader2 size={18} className="animate-spin" />
+                                         <span>{operationType === 'test' ? 'Testando...' : 'Enviando...'}</span>
+                                         <span className="font-mono text-sm">{formatTime(elapsedTime)}</span>
+                                       </div>
+                                       <button onClick={handleCancel} className="flex items-center gap-3 px-8 py-4 rounded-[2rem] font-black uppercase text-xs tracking-[0.2em] transition-all duration-300 shadow-xl active:scale-95 bg-rose-600 text-white hover:bg-rose-700">
+                                         <X size={18} />
+                                         <span>Parar</span>
+                                       </button>
+                                     </>
+                                   )}
+                                </div>
+                             )}
+                          </div>
+                        </div>
+                      ) : (
+                        /* ABA HISTÓRICO */
+                        <div key="history" className="flex-1 overflow-y-auto custom-scrollbar animate-tab-fade-in">
+                          {historyLoading ? (
+                            <div className="flex items-center justify-center py-20">
+                              <Loader2 size={28} className="animate-spin text-[#244235]" />
+                              <span className="ml-3 text-sm font-bold text-[#718878]">Carregando histórico...</span>
+                            </div>
+                          ) : testHistory.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center py-20 text-center">
+                              <History size={48} className="text-[#718878]/30 mb-4" />
+                              <p className="text-[#718878] font-bold text-sm">Nenhum teste realizado ainda.</p>
+                              <p className="text-[#718878]/60 text-xs mt-1">Execute um teste para ver o histórico aqui.</p>
+                            </div>
+                          ) : historyFullView !== null ? (
+                            /* VISÃO EXPANDIDA — logs fullscreen */
+                            <div className="flex flex-col h-full animate-tab-fade-in">
+                              <div className="flex items-center justify-between mb-4">
+                                <div className="flex items-center gap-3">
+                                  <button
+                                    onClick={() => setHistoryFullView(null)}
+                                    className="flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest text-[#718878] hover:text-[#244235] hover:bg-[#F3F8F4] transition-all duration-300"
+                                  >
+                                    <ArrowRight size={14} className="rotate-180" /> Voltar
+                                  </button>
+                                  <span className="text-xs font-black text-[#111A17] uppercase tracking-wide">
+                                    Teste #{testHistory.length - historyFullView}
+                                  </span>
+                                  <span className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest ${testHistory[historyFullView]?.sucesso ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-rose-50 text-rose-600 border border-rose-100'}`}>
+                                    {testHistory[historyFullView]?.sucesso ? 'Sucesso' : 'Falha'}
+                                  </span>
+                                </div>
+                                <span className="text-[10px] text-[#718878] font-medium">
+                                  {testHistory[historyFullView] && new Date(testHistory[historyFullView].criado_em).toLocaleString('pt-BR')}
+                                </span>
+                              </div>
+                              <div className="rounded-[2rem] bg-[#111A17] flex-1 overflow-hidden flex flex-col">
+                                <div className="flex items-center justify-between px-8 py-4 border-b border-white/5">
+                                  <div className="flex items-center gap-2">
+                                    <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                    <span className="text-[9px] font-black uppercase tracking-widest text-[#718878]">Logs do Pipeline</span>
+                                  </div>
+                                  <button
+                                    onClick={() => { navigator.clipboard.writeText(testHistory[historyFullView]?.logs || ''); }}
+                                    className="text-[#718878] hover:text-white p-2 transition-colors"
+                                    title="Copiar logs"
+                                  >
+                                    <Copy size={14} />
+                                  </button>
+                                </div>
+                                <pre className="flex-1 p-8 text-sm text-[#F3F8F4] font-mono whitespace-pre-wrap overflow-y-auto custom-scrollbar opacity-90 leading-relaxed">
+                                  {testHistory[historyFullView]?.logs || 'Nenhum log disponível.'}
+                                </pre>
+                              </div>
+                            </div>
+                          ) : (
+                            /* LISTA DE HISTÓRICO */
+                            <div className="space-y-4">
+                            {testHistory.map((item, idx) => (
+                              <div key={item.id} className="rounded-[2rem] border border-[#718878]/10 overflow-hidden transition-all duration-300 hover:shadow-lg">
+                                <button
+                                  onClick={() => { setExpandedHistory(expandedHistory === idx ? null : idx); setHistoryDetailTab('message'); }}
+                                  className="w-full flex items-center justify-between px-8 py-5 bg-white hover:bg-[#F3F8F4]/50 transition-colors"
+                                >
+                                  <div className="flex items-center gap-4">
+                                    <div className={`h-3 w-3 rounded-full flex-shrink-0 ${item.sucesso ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+                                    <div className="text-left">
+                                      <span className="text-xs font-black text-[#111A17] uppercase tracking-wide">
+                                        Teste #{testHistory.length - idx}
+                                      </span>
+                                      <p className="text-[10px] text-[#718878] font-medium mt-0.5">
+                                        {new Date(item.criado_em).toLocaleString('pt-BR')}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-3">
+                                    <span className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest ${item.sucesso ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-rose-50 text-rose-600 border border-rose-100'}`}>
+                                      {item.sucesso ? 'Sucesso' : 'Falha'}
+                                    </span>
+                                    {expandedHistory === idx ? <ChevronUp size={16} className="text-[#718878]" /> : <ChevronDown size={16} className="text-[#718878]" />}
+                                  </div>
+                                </button>
+                                {expandedHistory === idx && (
+                                  <div className="border-t border-[#718878]/10 animate-tab-fade-in">
+                                    {/* Sub-abas: Mensagem / Logs */}
+                                    <div className="flex items-center gap-1 px-6 pt-4 pb-2">
+                                      <button
+                                        onClick={() => setHistoryDetailTab('message')}
+                                        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all duration-300 ${historyDetailTab === 'message' ? 'bg-[#244235] text-white shadow-lg scale-105' : 'text-[#718878] hover:text-[#244235] scale-100'}`}
+                                      >
+                                        <MessageSquareText size={12} /> Mensagem
+                                      </button>
+                                      {item.logs && (
+                                        <button
+                                          onClick={() => setHistoryDetailTab('logs')}
+                                          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all duration-300 ${historyDetailTab === 'logs' ? 'bg-[#111A17] text-white shadow-lg scale-105' : 'text-[#718878] hover:text-[#111A17] scale-100'}`}
+                                        >
+                                          <Terminal size={12} /> Logs
+                                        </button>
+                                      )}
+                                    </div>
+
+                                    {/* Conteúdo da sub-aba */}
+                                    <div key={historyDetailTab} className="animate-tab-fade-in">
+                                      {historyDetailTab === 'message' ? (
+                                        <div className="p-6 bg-[#F3F8F4]/30">
+                                          <pre className="text-sm text-[#111A17] font-sans font-medium italic whitespace-pre-wrap bg-white rounded-2xl p-5 border border-[#718878]/10 max-h-[250px] overflow-y-auto custom-scrollbar">
+                                            {item.mensagem}
+                                          </pre>
+                                        </div>
+                                      ) : (
+                                        <div className="p-6 bg-[#111A17] relative">
+                                          <div className="flex items-center justify-between mb-3">
+                                            <p className="text-[10px] font-black text-[#718878] uppercase tracking-[0.3em]">Logs do pipeline</p>
+                                            <button
+                                              onClick={() => setHistoryFullView(idx)}
+                                              className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-[#718878] hover:text-white transition-colors"
+                                            >
+                                              <Eye size={12} /> Expandir
+                                            </button>
+                                          </div>
+                                          <pre className="text-xs text-[#F3F8F4] font-mono whitespace-pre-wrap max-h-[180px] overflow-y-auto custom-scrollbar opacity-80">
+                                            {item.logs}
+                                          </pre>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -814,6 +997,8 @@ const App = () => {
         .animate-in { animation: fade-in-simple 0.5s ease-out, zoom-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1); }
         @keyframes fade-in-simple { from { opacity: 0; } to { opacity: 1; } }
         @keyframes zoom-in { from { transform: scale(0.92); } to { transform: scale(1); } }
+        @keyframes tab-fade-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-tab-fade-in { animation: tab-fade-in 0.4s ease-out forwards; }
       `}} />
     </div>
   );

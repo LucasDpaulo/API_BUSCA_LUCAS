@@ -102,6 +102,7 @@ src/
   main.py                  # FastAPI app + CORS
   database.py              # SQLite + SQLAlchemy
   models/tenant.py         # Modelo Tenant (multi-tenant)
+  models/test_history.py   # Modelo TestHistory (historico de testes)
   routes/tenant_routes.py  # CRUD tenants + endpoints testar/disparar
   schemas/tenant_schema.py # Schemas Pydantic
   security/crypto.py       # Criptografia Fernet
@@ -131,11 +132,13 @@ tests/
 
 ### API Hinova — Particularidades
 - **Token expira rapido**: re-autenticacao automatica em caso de 401
-- **Boletos do dia**: NAO enviar `mes_referente` no payload (erro 406)
+- **Boletos do dia**: extraidos dos boletos do mes (pagos hoje por `data_pagamento` + vencendo hoje por `data_vencimento`)
 - **Boletos do mes**: DEVE enviar `mes_referente`
 - **Cancelamentos**: codigos CANCELADO(7), INATIVO(2), PRE-CANCELAMENTO(16)
 - **Situacoes**: cacheadas via `_buscar_situacoes()`
-- **Timeout**: 120s para POST (boletos paginam ate 10 paginas de 100)
+- **Timeout**: 240s para POST (boletos paginam em blocos de 500, fallback para 100)
+- **406 tratado como vazio**: `_post()` retorna `None` em vez de erro
+- **Boletos CANCELADOS**: filtrados automaticamente no `_buscar_boletos_periodo()`
 - **Restricao de horario**: Hinova bloqueia acesso fora do horario comercial
 
 ### WhatsApp / Quepasa
@@ -157,27 +160,39 @@ tests/
 - CRUD de tenants integrado com backend via fetch
 - Aba "Teste": roda pipeline sem enviar, mostra preview da mensagem
 - Aba "Logs": mostra logs reais do pipeline (erros e sucessos)
+- Aba "Historico": mostra ultimos 5 testes com resultado, mensagem e logs (expansivel)
 - Botao "Disparar para WhatsApp": envia a mensagem do preview (com confirmacao + countdown 10s)
+- Edicao de tenant carrega credenciais descriptografadas via `/detalhe`
 - Token Quepasa e URL ja preenchidos automaticamente no cadastro
 
 ---
 
-## 6. Estado atual (atualizado em 03/04/2026)
+## 6. Estado atual (atualizado em 06/04/2026)
 
 ### Tudo integrado e funcionando
 - Backend: 36/36 testes passando
-- Frontend React conectado ao backend (CRUD + testar + disparar)
+- Frontend React conectado ao backend (CRUD + testar + disparar + historico)
 - Tenant "Atomos dev" cadastrado e testado com dados reais
 - Relatorios enviados e recebidos no WhatsApp com sucesso
 - Scheduler configurado para 19:00
+
+### Mudancas pendentes (NAO commitadas)
+- Historico de testes: modelo `TestHistory`, endpoint `/historico`, aba no frontend
+- Endpoint `/detalhe` para carregar credenciais descriptografadas na edicao
+- Calculo de boletos do dia refatorado: filtra pagos/vencendo hoje dos boletos do mes (removido `boletos_dia`)
+- Paginacao de boletos otimizada: tenta pagina 500, fallback 100, filtra CANCELADOS
+- Timeout Hinova aumentado de 120s para 240s
+- Tratamento de 406 como resposta vazia no `_post()`
 
 ### Endpoints da API
 - `GET /tenants/` — listar tenants
 - `POST /tenants/` — criar tenant
 - `PUT /tenants/{id}` — atualizar tenant
 - `DELETE /tenants/{id}` — remover tenant
+- `GET /tenants/{id}/detalhe` — dados completos com credenciais (para edicao)
 - `POST /tenants/{id}/testar` — testar pipeline (sem enviar)
 - `POST /tenants/{id}/disparar` — enviar mensagem ao WhatsApp
+- `GET /tenants/{id}/historico` — ultimos 5 testes do tenant
 - `GET /tenants/{id}/status` — status do ultimo envio
 
 ---
@@ -186,8 +201,8 @@ tests/
 
 ### Prioridade media
 - [ ] Salvar ultimo relatorio no banco para exibir no frontend
-- [ ] Avaliar boletos do dia (emitidos vs vencendo)
-- [ ] Historico de relatorios enviados
+- [x] Avaliar boletos do dia (emitidos vs vencendo) — implementado (pagos hoje + vencendo hoje)
+- [x] Historico de relatorios enviados — implementado (tabela test_history + aba no frontend)
 
 ### Prioridade baixa
 - [ ] Multiplos destinatarios por tenant

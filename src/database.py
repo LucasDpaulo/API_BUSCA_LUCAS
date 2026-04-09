@@ -15,6 +15,9 @@ class Base(DeclarativeBase):
 
 def init_db() -> None:
     """Cria todas as tabelas no banco."""
+    from src.models.tenant import Tenant  # noqa: F401
+    from src.models.test_history import TestHistory  # noqa: F401
+
     Base.metadata.create_all(bind=engine)
 
 

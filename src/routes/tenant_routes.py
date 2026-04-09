@@ -10,11 +10,14 @@ from src.schemas.tenant_schema import (
     TenantCreate,
     TenantUpdate,
     TenantResponse,
+    TenantDetailResponse,
+    TestHistoryResponse,
     TenantStatusResponse,
 )
 from src.security.crypto import encrypt, decrypt
 from src.scheduler.job import _processar_tenant, _testar_tenant
 from src.quepasa.client import enviar_relatorio
+from src.models.test_history import TestHistory
 
 # Campos que devem ser cifrados no banco
 _CAMPOS_CIFRADOS = {"hinova_token", "hinova_senha", "quepasa_token"}
@@ -53,6 +56,28 @@ def buscar_tenant(tenant_id: str, db: Session = Depends(get_db)):
     if not tenant:
         raise HTTPException(status_code=404, detail="Tenant não encontrado")
     return tenant
+
+
+@router.get("/{tenant_id}/detalhe", response_model=TenantDetailResponse)
+def detalhe_tenant(tenant_id: str, db: Session = Depends(get_db)):
+    """Retorna dados completos do tenant com credenciais descriptografadas (para edição)."""
+    tenant = db.query(Tenant).filter(Tenant.id == tenant_id).first()
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant não encontrado")
+    return TenantDetailResponse(
+        id=tenant.id,
+        nome=tenant.nome,
+        hinova_token=decrypt(tenant.hinova_token),
+        hinova_usuario=tenant.hinova_usuario,
+        hinova_senha=decrypt(tenant.hinova_senha),
+        quepasa_token=decrypt(tenant.quepasa_token),
+        quepasa_base_url=tenant.quepasa_base_url,
+        whatsapp_destino=tenant.whatsapp_destino,
+        ativo=tenant.ativo,
+        ultimo_envio=tenant.ultimo_envio,
+        ultimo_status=tenant.ultimo_status,
+        criado_em=tenant.criado_em,
+    )
 
 
 @router.put("/{tenant_id}", response_model=TenantResponse)
@@ -106,16 +131,41 @@ def testar_relatorio(tenant_id: str, db: Session = Depends(get_db)):
     try:
         mensagem = _testar_tenant(tenant)
         logs = log_capture.getvalue()
+        sucesso = bool(mensagem)
+        msg_final = mensagem or "Falha ao gerar relatório."
+
+        # Salvar no histórico
+        historico = TestHistory(
+            tenant_id=tenant.id,
+            sucesso=sucesso,
+            mensagem=msg_final,
+            logs=logs,
+        )
+        db.add(historico)
+        db.commit()
+
         return {
-            "sucesso": bool(mensagem),
-            "mensagem": mensagem or "Falha ao gerar relatório.",
+            "sucesso": sucesso,
+            "mensagem": msg_final,
             "logs": logs,
         }
     except Exception as e:
         logs = log_capture.getvalue()
+        msg_erro = f"Erro: {str(e)}"
+
+        # Salvar erro no histórico
+        historico = TestHistory(
+            tenant_id=tenant.id,
+            sucesso=False,
+            mensagem=msg_erro,
+            logs=logs,
+        )
+        db.add(historico)
+        db.commit()
+
         return {
             "sucesso": False,
-            "mensagem": f"Erro: {str(e)}",
+            "mensagem": msg_erro,
             "logs": logs,
         }
     finally:
@@ -164,6 +214,21 @@ def disparar_relatorio(tenant_id: str, body: MensagemDisparo, db: Session = Depe
         }
     finally:
         root_logger.removeHandler(handler)
+
+
+@router.get("/{tenant_id}/historico", response_model=list[TestHistoryResponse])
+def historico_testes(tenant_id: str, db: Session = Depends(get_db)):
+    """Retorna os últimos 5 resultados de teste do tenant."""
+    tenant = db.query(Tenant).filter(Tenant.id == tenant_id).first()
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant não encontrado")
+    return (
+        db.query(TestHistory)
+        .filter(TestHistory.tenant_id == tenant_id)
+        .order_by(TestHistory.criado_em.desc())
+        .limit(5)
+        .all()
+    )
 
 
 @router.get("/{tenant_id}/status", response_model=TenantStatusResponse)
