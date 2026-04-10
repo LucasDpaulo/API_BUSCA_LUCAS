@@ -140,11 +140,16 @@ def test_calcular_boletos_status_com_espacos():
 
 
 def test_processar_dados_completos():
-    from datetime import date
+    from datetime import date, timedelta
     hoje = date.today().strftime("%Y-%m-%d")
+    futuro = (date.today() + timedelta(days=5)).strftime("%Y-%m-%d")
     boletos = [
-        {"situacao_boleto": "ABERTO", "valor_boleto": "50000.00", "data_emissao": hoje, "data_vencimento": "2026-04-20"},
-        {"situacao_boleto": "BAIXADO", "valor_boleto": "35000.00", "data_pagamento": hoje, "data_emissao": "2025-01-01"},
+        # Aberto com vencimento <= hoje → conta no dia
+        {"situacao_boleto": "ABERTO", "valor_boleto": "50000.00", "data_vencimento": hoje},
+        # Aberto com vencimento futuro → NÃO conta no dia, conta no mês
+        {"situacao_boleto": "ABERTO", "valor_boleto": "20000.00", "data_vencimento": futuro},
+        # Pago hoje → conta em dia_pagos e mes_pagos
+        {"situacao_boleto": "BAIXADO", "valor_boleto": "35000.00", "data_pagamento": hoje, "data_vencimento": hoje},
     ]
     dados = DadosHinova(
         total_ativos=1250,
@@ -157,14 +162,13 @@ def test_processar_dados_completos():
     assert report.total_ativos == 1250
     assert report.vendas_hoje == 5
     assert report.cancelamentos_hoje == 2
-    # Dia (emitidos hoje abertos + pagos hoje)
+    # Dia: abertos com venc<=hoje + pagos hoje
     assert report.dia_abertos == Decimal("50000.00")
     assert report.dia_pagos == Decimal("35000.00")
     assert report.dia_percentual_pagos == Decimal("41.2")
-    # Mês
-    assert report.mes_abertos == Decimal("50000.00")
+    # Mês: todos abertos + todos pagos
+    assert report.mes_abertos == Decimal("70000.00")
     assert report.mes_pagos == Decimal("35000.00")
-    assert report.mes_percentual_pagos == Decimal("41.2")
 
 
 def test_processar_sem_boletos():

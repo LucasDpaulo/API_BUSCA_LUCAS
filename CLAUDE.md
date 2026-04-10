@@ -132,11 +132,15 @@ tests/
 
 ### API Hinova — Particularidades
 - **Token expira rapido**: re-autenticacao automatica em caso de 401
-- **Boletos do dia**: extraidos dos boletos do mes (pagos hoje por `data_pagamento` + vencendo hoje por `data_vencimento`)
+- **Ativos Totais**: `buscar_ativos()` usa `codigo_situacao=1` e le `total_veiculos` (Atomos dev = 8120). Nao tem como filtrar "apenas ativos que geram boleto" sem acesso a tela especifica do Hinova — ja investigado.
+- **Boletos do dia**:
+  - **Pagos**: boletos do mes com `data_pagamento = hoje`
+  - **Abertos**: boletos com `data_vencimento <= hoje` ainda nao baixados (acumulado do inicio do mes ate hoje, nao apenas emitidos hoje)
 - **Boletos do mes**: DEVE enviar `mes_referente`
 - **Cancelamentos**: codigos CANCELADO(7), INATIVO(2), PRE-CANCELAMENTO(16)
 - **Situacoes**: cacheadas via `_buscar_situacoes()`
 - **Timeout**: 240s para POST (boletos paginam em blocos de 500, fallback para 100)
+- **Paginacao**: `inicio_paginacao` e INDICE DE PAGINA (0,1,2,3...) NAO offset absoluto
 - **406 tratado como vazio**: `_post()` retorna `None` em vez de erro
 - **Boletos CANCELADOS**: filtrados automaticamente no `_buscar_boletos_periodo()`
 - **Restricao de horario**: Hinova bloqueia acesso fora do horario comercial
@@ -164,10 +168,12 @@ tests/
 - Botao "Disparar para WhatsApp": envia a mensagem do preview (com confirmacao + countdown 10s)
 - Edicao de tenant carrega credenciais descriptografadas via `/detalhe`
 - Token Quepasa e URL ja preenchidos automaticamente no cadastro
+- Modo suave (noturno leve): toggle lua/sol no nav, persiste em localStorage
+- Animacoes fade-in nas transicoes de aba (Teste/Logs/Historico)
 
 ---
 
-## 6. Estado atual (atualizado em 06/04/2026)
+## 6. Estado atual (atualizado em 10/04/2026)
 
 ### Tudo integrado e funcionando
 - Backend: 36/36 testes passando
@@ -175,14 +181,10 @@ tests/
 - Tenant "Atomos dev" cadastrado e testado com dados reais
 - Relatorios enviados e recebidos no WhatsApp com sucesso
 - Scheduler configurado para 19:00
-
-### Mudancas pendentes (NAO commitadas)
-- Historico de testes: modelo `TestHistory`, endpoint `/historico`, aba no frontend
-- Endpoint `/detalhe` para carregar credenciais descriptografadas na edicao
-- Calculo de boletos do dia refatorado: filtra pagos/vencendo hoje dos boletos do mes (removido `boletos_dia`)
-- Paginacao de boletos otimizada: tenta pagina 500, fallback 100, filtra CANCELADOS
-- Timeout Hinova aumentado de 120s para 240s
-- Tratamento de 406 como resposta vazia no `_post()`
+- Paginacao Hinova corrigida (indice de pagina, nao offset)
+- Boletos do dia: pagos hoje + abertos com vencimento <= hoje (acumulado do mes ate hoje)
+- Historico de testes com sub-abas (Mensagem/Logs) e visao expandida
+- Modo suave (noturno leve) com toggle no nav — persiste em localStorage
 
 ### Endpoints da API
 - `GET /tenants/` — listar tenants
@@ -201,7 +203,7 @@ tests/
 
 ### Prioridade media
 - [ ] Salvar ultimo relatorio no banco para exibir no frontend
-- [x] Avaliar boletos do dia (emitidos vs vencendo) — implementado (pagos hoje + vencendo hoje)
+- [x] Avaliar boletos do dia (emitidos vs vencendo) — implementado (abertos com venc<=hoje + pagos hoje)
 - [x] Historico de relatorios enviados — implementado (tabela test_history + aba no frontend)
 
 ### Prioridade baixa

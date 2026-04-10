@@ -42,10 +42,16 @@ import {
   ArrowRight,
   History,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Moon,
+  Sun
 } from 'lucide-react';
 
 const App = () => {
+  // Modo suave (noturno leve)
+  const [softMode, setSoftMode] = useState(() => localStorage.getItem('softMode') === 'true');
+  const toggleSoftMode = () => setSoftMode(prev => { const next = !prev; localStorage.setItem('softMode', next); return next; });
+
   // Estados de Autenticação e Navegação
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
@@ -589,27 +595,32 @@ const App = () => {
 
   // RENDERIZAÇÃO DO DASHBOARD
   return (
-    <div className="min-h-screen relative bg-[#F3F8F4] font-sans text-[#111A17] overflow-x-hidden animate-in fade-in duration-1000">
+    <div className={`min-h-screen relative font-sans text-[#111A17] overflow-x-hidden animate-in fade-in duration-1000 ${softMode ? 'soft-mode' : ''}`} style={{ backgroundColor: softMode ? '#C5D1C0' : '#F3F8F4' }}>
 
       {/* Wall Texture Effect */}
       <svg className="absolute w-0 h-0 overflow-hidden pointer-events-none">
         <filter id="blurredWallTexture">
           <feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="6" result="noise" />
-          <feDiffuseLighting in="noise" lightingColor="#F3F8F4" surfaceScale="5" result="light">
+          <feDiffuseLighting in="noise" lightingColor={softMode ? '#C5D1C0' : '#F3F8F4'} surfaceScale="5" result="light">
             <feDistantLight azimuth="45" elevation="40" />
           </feDiffuseLighting>
           <feGaussianBlur in="light" stdDeviation="1.8" />
         </filter>
       </svg>
-      <div className="fixed inset-0 pointer-events-none z-0 scale-105" style={{ filter: 'url(#blurredWallTexture)', backgroundColor: '#E9EFEA' }} />
+      <div className="fixed inset-0 pointer-events-none z-0 scale-105" style={{ filter: 'url(#blurredWallTexture)', backgroundColor: softMode ? '#B8C5B3' : '#E9EFEA', transition: 'background-color 0.6s ease' }} />
 
       <nav className="relative z-20 bg-[#111A17] text-[#F3F8F4] px-8 py-5 flex justify-between items-center shadow-2xl">
         <div className="flex items-center gap-4">
           <h1 className="text-sm font-black tracking-[0.3em] uppercase italic leading-none">API Busca Lucas</h1>
         </div>
-        <button onClick={handleLogout} className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[#718878] hover:text-white transition-colors group">
-          Sair <LogOut size={14} className="group-hover:translate-x-1 transition-transform" />
-        </button>
+        <div className="flex items-center gap-5">
+          <button onClick={toggleSoftMode} className="p-2 text-[#718878] hover:text-white transition-all duration-500" title={softMode ? 'Modo claro' : 'Modo suave'}>
+            {softMode ? <Sun size={15} /> : <Moon size={15} />}
+          </button>
+          <button onClick={handleLogout} className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[#718878] hover:text-white transition-colors group">
+            Sair <LogOut size={14} className="group-hover:translate-x-1 transition-transform" />
+          </button>
+        </div>
       </nav>
 
       <main className="relative z-10 max-w-6xl mx-auto p-4 sm:p-10">
@@ -756,19 +767,19 @@ const App = () => {
 
                       {reportTab !== 'history' ? (
                         <div key={reportTab} className="animate-tab-fade-in">
-                          <div className={`rounded-[3rem] p-8 lg:p-10 relative overflow-hidden shadow-2xl border-l-[12px] flex-shrink-0 transition-all duration-500 min-h-[300px] ${reportTab === 'logs' ? 'bg-[#111A17] border-[#244235]' : 'bg-[#F3F8F4] border-[#111A17]'}`}>
-                            <div className="absolute top-0 right-0 p-8 opacity-[0.03] pointer-events-none">{reportTab === 'logs' ? <Code size={140} className="text-white" /> : <MessageSquare size={140} className="text-[#111A17]" />}</div>
+                          <div className={`rounded-[3rem] p-8 lg:p-10 relative overflow-hidden shadow-2xl border-l-[12px] flex-shrink-0 transition-all duration-500 min-h-[300px] ${reportTab === 'logs' ? 'bg-[#111A17] border-[#244235]' : 'bg-[#244235] border-[#111A17]'}`}>
+                            <div className="absolute top-0 right-0 p-8 opacity-[0.03] pointer-events-none">{reportTab === 'logs' ? <Code size={140} className="text-white" /> : <MessageSquare size={140} className="text-white" />}</div>
                             <div className="relative z-10 flex justify-between items-start mb-6">
-                               <div className={`px-4 py-1.5 rounded-xl border inline-flex items-center gap-2 ${reportTab === 'logs' ? 'bg-[#244235]/20 border-[#244235]/40 text-white' : 'bg-[#111A17]/10 border-[#111A17]/20 text-[#111A17]'}`}>
-                                  <div className={`h-1.5 w-1.5 rounded-full animate-pulse ${reportTab === 'logs' ? 'bg-emerald-500' : 'bg-[#111A17]'}`} />
+                               <div className={`px-4 py-1.5 rounded-xl border inline-flex items-center gap-2 ${reportTab === 'logs' ? 'bg-[#244235]/20 border-[#244235]/40 text-white' : 'bg-white/10 border-white/20 text-white'}`}>
+                                  <div className={`h-1.5 w-1.5 rounded-full animate-pulse ${reportTab === 'logs' ? 'bg-emerald-500' : 'bg-emerald-400'}`} />
                                   <span className="text-[9px] font-black uppercase tracking-widest">{reportTab === 'logs' ? 'Pipeline Ativo' : 'Preview da Mensagem'}</span>
                                </div>
                                <div className="flex items-center gap-2">
                                  {reportTab === 'logs' && <button onClick={clearLogs} className="text-[#718878] hover:text-rose-500 p-2 transition-colors" title="Limpar logs"><Trash2 size={16} /></button>}
-                                 <button onClick={handleCopyReport} className="text-[#718878] hover:text-[#111A17] p-2 transition-colors" title="Copiar"><Copy size={16} /></button>
+                                 <button onClick={handleCopyReport} className={`p-2 transition-colors ${reportTab === 'logs' ? 'text-[#718878] hover:text-white' : 'text-white/40 hover:text-white'}`} title="Copiar"><Copy size={16} /></button>
                                </div>
                             </div>
-                            <pre className={`relative z-10 text-base whitespace-pre-wrap opacity-95 ${reportTab === 'logs' ? 'text-[#F3F8F4] font-mono text-sm' : 'text-[#111A17] font-sans font-medium italic'}`}>{reportTab === 'logs' ? formData.technicalLog : formData.lastReport}</pre>
+                            <pre className={`relative z-10 text-base whitespace-pre-wrap opacity-95 ${reportTab === 'logs' ? 'text-[#F3F8F4] font-mono text-sm' : 'text-[#F3F8F4] font-sans font-medium italic'}`}>{reportTab === 'logs' ? formData.technicalLog : formData.lastReport}</pre>
                           </div>
 
                           <div className="flex flex-col items-start gap-6 w-full mt-4">
@@ -861,7 +872,7 @@ const App = () => {
                             /* LISTA DE HISTÓRICO */
                             <div className="space-y-4">
                             {testHistory.map((item, idx) => (
-                              <div key={item.id} className="rounded-[2rem] border border-[#718878]/10 overflow-hidden transition-all duration-300 hover:shadow-lg">
+                              <div key={item.id} className="rounded-[2rem] border border-[#718878]/15 overflow-hidden transition-all duration-300 hover:shadow-lg border-l-[6px] border-l-[#244235] shadow-sm" style={{ overflow: 'clip' }}>
                                 <button
                                   onClick={() => { setExpandedHistory(expandedHistory === idx ? null : idx); setHistoryDetailTab('message'); }}
                                   className="w-full flex items-center justify-between px-8 py-5 bg-white hover:bg-[#F3F8F4]/50 transition-colors"
@@ -907,8 +918,8 @@ const App = () => {
                                     {/* Conteúdo da sub-aba */}
                                     <div key={historyDetailTab} className="animate-tab-fade-in">
                                       {historyDetailTab === 'message' ? (
-                                        <div className="p-6 bg-[#F3F8F4]/30">
-                                          <pre className="text-sm text-[#111A17] font-sans font-medium italic whitespace-pre-wrap bg-white rounded-2xl p-5 border border-[#718878]/10 max-h-[250px] overflow-y-auto custom-scrollbar">
+                                        <div className="p-6 bg-[#244235] rounded-b-[2rem]">
+                                          <pre className="text-sm text-[#F3F8F4] font-sans font-medium italic whitespace-pre-wrap bg-white/10 rounded-2xl p-5 border border-white/10 max-h-[500px] overflow-y-auto custom-scrollbar">
                                             {item.mensagem}
                                           </pre>
                                         </div>
@@ -999,6 +1010,29 @@ const App = () => {
         @keyframes zoom-in { from { transform: scale(0.92); } to { transform: scale(1); } }
         @keyframes tab-fade-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
         .animate-tab-fade-in { animation: tab-fade-in 0.4s ease-out forwards; }
+
+        /* Modo suave — brancos viram tom verde suave */
+        .soft-mode { transition: background-color 0.6s ease; }
+        .soft-mode .bg-white\\/95 { background-color: rgba(197,209,192,0.95) !important; }
+        .soft-mode .bg-white\\/40 { background-color: rgba(197,209,192,0.40) !important; }
+        .soft-mode .bg-white { background-color: #CADBC5 !important; }
+        .soft-mode .bg-\\[\\#F3F8F4\\] { background-color: #BDCEB8 !important; }
+        .soft-mode .bg-\\[\\#F3F8F4\\]\\/30 { background-color: rgba(189,206,184,0.3) !important; }
+        .soft-mode .bg-\\[\\#F3F8F4\\]\\/50 { background-color: rgba(189,206,184,0.5) !important; }
+        .soft-mode .bg-\\[\\#E9EFEA\\] { background-color: #B5C6B0 !important; }
+        .soft-mode .bg-rose-50 { background-color: rgba(197,209,192,0.5) !important; }
+        .soft-mode .from-white { --tw-gradient-from: #CADBC5 !important; }
+        .soft-mode .to-slate-50\\/50 { --tw-gradient-to: rgba(197,209,192,0.5) !important; }
+        .soft-mode .border-white\\/50 { border-color: rgba(197,209,192,0.5) !important; }
+        .soft-mode .border-white\\/10 { border-color: rgba(197,209,192,0.1) !important; }
+        .soft-mode .hover\\:bg-\\[\\#F3F8F4\\]\\/50:hover { background-color: rgba(189,206,184,0.5) !important; }
+        .soft-mode .bg-emerald-50 { background-color: #B0CFAD !important; border-color: #7DA878 !important; }
+        .soft-mode .bg-gray-100 { background-color: #D4A9A9 !important; border-color: #B07070 !important; }
+        .soft-mode .text-gray-400 { color: #C05050 !important; }
+        .soft-mode .bg-gray-400 { background-color: #C05050 !important; }
+        .soft-mode .bg-amber-50 { background-color: #C8CCAC !important; }
+        .soft-mode .border-emerald-100 { border-color: #7DA878 !important; }
+        .soft-mode .border-gray-200 { border-color: #B07070 !important; }
       `}} />
     </div>
   );

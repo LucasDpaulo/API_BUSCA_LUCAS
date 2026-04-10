@@ -2,7 +2,7 @@
 
 import calendar
 import logging
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 
 from src.core.models import ReportData
@@ -90,23 +90,36 @@ def _filtrar_pagos_hoje(boletos: list[dict], referencia: date | None = None) -> 
     return pagos_hoje
 
 
-def _filtrar_abertos_hoje(boletos: list[dict], referencia: date | None = None) -> list[dict]:
-    """Filtra boletos emitidos hoje que ainda estão abertos (por data_emissao)."""
+def _parse_data_boleto(valor: str) -> date | None:
+    """Parseia data de boleto em formato ISO (YYYY-MM-DD) ou BR (DD/MM/YYYY)."""
+    if not valor:
+        return None
+    valor = str(valor).strip()[:10]
+    for fmt in ("%Y-%m-%d", "%d/%m/%Y"):
+        try:
+            return datetime.strptime(valor, fmt).date()
+        except ValueError:
+            continue
+    return None
+
+
+def _filtrar_abertos_ate_hoje(boletos: list[dict], referencia: date | None = None) -> list[dict]:
+    """Filtra boletos abertos cujo vencimento é até hoje (acumulado do mês)."""
     hoje = referencia or date.today()
-    hoje_iso = hoje.strftime("%Y-%m-%d")       # "2026-04-09"
-    hoje_br = hoje.strftime("%d/%m/%Y")         # "09/04/2026"
     abertos = []
     for b in boletos:
-        data_emissao = str(b.get("data_emissao") or "")
-        if data_emissao.startswith(hoje_iso) or data_emissao.startswith(hoje_br):
-            status = (
-                b.get("situacao_boleto")
-                or b.get("descricao_situacao_boleto")
-                or b.get("status")
-                or ""
-            ).strip().upper()
-            if status not in ("BAIXADO", "PAGO", "LIQUIDADO", "CANCELADO", "ESTORNADO", "EXCLUIDO", "EXCLUÍDO"):
-                abertos.append(b)
+        venc = _parse_data_boleto(b.get("data_vencimento") or "")
+        if venc is None or venc > hoje:
+            continue
+        status = (
+            b.get("descricao_situacao_boleto")
+            or b.get("situacao_boleto")
+            or b.get("situacao")
+            or b.get("status")
+            or ""
+        ).strip().upper()
+        if status not in ("BAIXADO", "PAGO", "LIQUIDADO", "CANCELADO", "ESTORNADO", "EXCLUIDO", "EXCLUÍDO"):
+            abertos.append(b)
     return abertos
 
 
@@ -118,13 +131,16 @@ def processar(dados: DadosHinova) -> ReportData:
     """
     boletos_mes = dados.boletos_mes or []
 
-    # Resumo do dia: pagos hoje (data_pagamento) + emitidos hoje ainda abertos (data_emissao)
+    # Resumo do dia: pagos hoje (data_pagamento) + abertos com vencimento até hoje (acumulado)
     pagos_hoje = _filtrar_pagos_hoje(boletos_mes)
-    abertos_hoje = _filtrar_abertos_hoje(boletos_mes)
-    logger.info("Boletos pagos hoje: %d | Abertos (emitidos hoje): %d", len(pagos_hoje), len(abertos_hoje))
+    abertos_ate_hoje = _filtrar_abertos_ate_hoje(boletos_mes)
+    logger.info(
+        "Boletos pagos hoje: %d | Abertos até hoje (venc≤hoje): %d",
+        len(pagos_hoje), len(abertos_ate_hoje),
+    )
 
     _, dia_pagos = calcular_boletos(pagos_hoje)
-    dia_abertos, _ = calcular_boletos(abertos_hoje)
+    dia_abertos, _ = calcular_boletos(abertos_ate_hoje)
 
     mes_abertos, mes_pagos = calcular_boletos(boletos_mes)
 
