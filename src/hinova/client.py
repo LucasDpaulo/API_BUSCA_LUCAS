@@ -293,6 +293,9 @@ class HinovaClient:
         logger.info("Página 0: %d boletos recebidos (tam_página=%d, total_páginas=%d)", len(boletos), page_size, num_paginas)
 
         # Paginar o resto — inicio_paginacao = 1, 2, 3 ...
+        # Confiar no num_paginas da API (NAO parar so porque a pagina veio com
+        # menos que page_size — a Hinova pode devolver paginas intermediarias
+        # com 499 em vez de 500 e a gente perdia os 10 mil restantes).
         pagina = 1
         max_paginas = num_paginas if num_paginas > 0 else 200
 
@@ -301,13 +304,11 @@ class HinovaClient:
             boletos_pag, _ = self._buscar_boletos_pagina(mes_ref, data_ini, data_fim, page_size, pagina)
 
             if not boletos_pag:
+                logger.warning("Pagina %d vazia — interrompendo paginacao", pagina)
                 break
 
             todos.extend(boletos_pag)
             logger.info("Página %d: %d recebidos | Acumulado: %d", pagina, len(boletos_pag), len(todos))
-
-            if len(boletos_pag) < page_size:
-                break
 
             pagina += 1
 
@@ -338,20 +339,24 @@ class HinovaClient:
     def buscar_boletos_mes(
         self, ano: int | None = None, mes: int | None = None,
     ) -> list[dict]:
-        """Retorna a lista de boletos do mês corrente (dia 01 até último dia)."""
+        """Retorna todos os boletos com vencimento no mês (dia 01 até último dia).
+
+        NÃO usa `mes_referente` — esse filtro exclui boletos atrasados ou
+        antecipados (ex: mensalidade de março vencendo em 05/04 era ignorada).
+        A busca usa apenas `data_vencimento_inicial/final`.
+        """
         import calendar
 
         hoje = date.today()
         ano = ano or hoje.year
         mes = mes or hoje.month
 
-        mes_ref = f"{mes:02d}/{ano}"
         ultimo_dia = calendar.monthrange(ano, mes)[1]
         data_ini = f"01/{mes:02d}/{ano}"
         data_fim = f"{ultimo_dia:02d}/{mes:02d}/{ano}"
 
-        boletos = self._buscar_boletos_periodo(mes_ref, data_ini, data_fim)
-        logger.info("Boletos do mês %s: %d encontrados", mes_ref, len(boletos))
+        boletos = self._buscar_boletos_periodo(None, data_ini, data_fim)
+        logger.info("Boletos no periodo %s a %s: %d encontrados", data_ini, data_fim, len(boletos))
         return boletos
 
     @staticmethod

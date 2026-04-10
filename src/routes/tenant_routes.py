@@ -187,7 +187,10 @@ def disparar_relatorio(tenant_id: str, body: MensagemDisparo, db: Session = Depe
     if not tenant:
         raise HTTPException(status_code=404, detail="Tenant não encontrado")
     if not tenant.ativo:
-        raise HTTPException(status_code=400, detail="Tenant está inativo")
+        raise HTTPException(
+            status_code=400,
+            detail="Tenant está inativo — ative-o antes de enviar a mensagem.",
+        )
 
     log_capture = io.StringIO()
     handler = logging.StreamHandler(log_capture)
