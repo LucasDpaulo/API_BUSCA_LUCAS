@@ -132,11 +132,12 @@ tests/
 
 ### API Hinova — Particularidades
 - **Token expira rapido**: re-autenticacao automatica em caso de 401
-- **Ativos Totais**: `buscar_ativos()` usa `codigo_situacao=1` e le `total_veiculos` (Atomos dev = 8120). Nao tem como filtrar "apenas ativos que geram boleto" sem acesso a tela especifica do Hinova — ja investigado.
+- **Ativos Totais**: `buscar_ativos()` usa `codigo_situacao=1` e le `total_veiculos` (Atomos dev ~8130). Nao tem como filtrar "apenas ativos que geram boleto" sem acesso a tela especifica do Hinova — ja investigado.
 - **Boletos do dia**:
   - **Pagos**: boletos do mes com `data_pagamento = hoje`
   - **Abertos**: boletos com `data_vencimento <= hoje` ainda nao baixados (acumulado do inicio do mes ate hoje, nao apenas emitidos hoje)
-- **Boletos do mes**: DEVE enviar `mes_referente`
+- **Boletos do mes**: usa APENAS `data_vencimento_inicial/final` (01 ao ultimo dia). NAO enviar `mes_referente` — esse parametro filtra por mensalidade, excluindo atrasados/antecipados que vencem no mes (ex: mensalidade de marco vencendo em 05/04 era ignorada). Bug descoberto 10/04/2026: com `mes_referente` vinham 817 boletos, sem ele vem ~9991 (numero real).
+- **Paginacao (criterio de parada)**: paginar ate `numero_paginas` retornado pela API, NAO parar quando a pagina veio com menos que `page_size`. A Hinova devolve paginas intermediarias com 499 em vez de 500 e o loop antigo parava cedo perdendo ~10k boletos.
 - **Cancelamentos**: codigos CANCELADO(7), INATIVO(2), PRE-CANCELAMENTO(16)
 - **Situacoes**: cacheadas via `_buscar_situacoes()`
 - **Timeout**: 240s para POST (boletos paginam em blocos de 500, fallback para 100)
@@ -144,6 +145,7 @@ tests/
 - **406 tratado como vazio**: `_post()` retorna `None` em vez de erro
 - **Boletos CANCELADOS**: filtrados automaticamente no `_buscar_boletos_periodo()`
 - **Restricao de horario**: Hinova bloqueia acesso fora do horario comercial
+- **Performance**: pipeline de um tenant leva ~2 minutos agora (23 paginas x 500 boletos com re-auth). Aceitavel para job das 19h.
 
 ### WhatsApp / Quepasa
 - Container Docker `quepasa-fixed`, porta 31000
@@ -173,18 +175,35 @@ tests/
 
 ---
 
-## 6. Estado atual (atualizado em 10/04/2026)
+## ⚠️ AGUARDANDO VALIDAÇÃO DO CHEFE (10/04/2026)
+
+A remocao do `mes_referente` no `buscar_boletos_mes()` multiplicou os numeros do
+relatorio em ~11x (Atomos dev: R$ 99k → R$ 1.09M aberto). A mudanca esta baseada
+na analise do arquivo `Modelo - APV.xlsx` (export da Hinova enviado pelo chefe).
+
+**SE o chefe validar que os novos numeros NAO batem com o que ele espera,
+reverter o commit `ec7d9ca`** — voltando a usar `mes_referente` e a logica de
+paginacao antiga. Arquivo afetado: `src/hinova/client.py` (`buscar_boletos_mes`
+e `_buscar_boletos_periodo`).
+
+Comando: `git revert ec7d9ca`
+
+---
+
+## 6. Estado atual (atualizado em 10/04/2026 — tarde)
 
 ### Tudo integrado e funcionando
 - Backend: 36/36 testes passando
 - Frontend React conectado ao backend (CRUD + testar + disparar + historico)
-- Tenant "Atomos dev" cadastrado e testado com dados reais
+- Tenants "Atomos dev" e "Atomos - Miriam" cadastrados e testados com dados reais
 - Relatorios enviados e recebidos no WhatsApp com sucesso
 - Scheduler configurado para 19:00
-- Paginacao Hinova corrigida (indice de pagina, nao offset)
+- Paginacao Hinova corrigida duas vezes: (1) indice de pagina (nao offset), (2) parar por num_paginas (nao por page_size)
+- Boletos do mes: sem `mes_referente` — pega TODOS que vencem em abril (~10x mais que antes, numeros agora batem com o Hinova real)
 - Boletos do dia: pagos hoje + abertos com vencimento <= hoje (acumulado do mes ate hoje)
 - Historico de testes com sub-abas (Mensagem/Logs) e visao expandida
 - Modo suave (noturno leve) com toggle no nav — persiste em localStorage
+- Mensagem de erro clara quando tenta disparar para tenant inativo
 
 ### Endpoints da API
 - `GET /tenants/` — listar tenants

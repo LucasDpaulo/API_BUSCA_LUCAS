@@ -30,7 +30,7 @@ def formatar_relatorio(nome_empresa: str, report: ReportData) -> str:
         f"\U0001f4ca Relatório Diário - {nome_empresa}\n"
         f"\n"
         f"\U0001f697 Ativos Totais: {report.total_ativos:,}\n"
-        f"\u2705 Vendas hoje: {report.vendas_hoje:02d}\n"
+        f"\u2705 Cadastro hoje: {report.vendas_hoje:02d}\n"
         f"\u274c Cancelados hoje: {report.cancelamentos_hoje:02d}\n"
         f"\n"
         f"\U0001f4b0 Resumo do Dia:\n"
