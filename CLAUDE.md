@@ -190,7 +190,15 @@ Comando: `git revert ec7d9ca`
 
 ---
 
-## 6. Estado atual (atualizado em 10/04/2026 — tarde)
+## 6. Estado atual (atualizado em 15/04/2026)
+
+### Branches ativas
+- `main` — versao congelada aguardando validacao do chefe sobre os numeros
+  do `mes_referente` (commit `ec7d9ca`) e label "Cadastro hoje" (commit `e43638d`).
+  NAO mexer aqui ate retorno do chefe.
+- `nao_oficial` — branch de trabalho para novas mudancas enquanto main fica
+  em espera. Criada a partir de `e43638d`. Eh aqui que desenvolvemos novas
+  features/ajustes ate o chefe validar main.
 
 ### Tudo integrado e funcionando
 - Backend: 36/36 testes passando
