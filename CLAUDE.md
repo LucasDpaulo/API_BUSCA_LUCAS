@@ -133,9 +133,14 @@ tests/
 ### API Hinova — Particularidades
 - **Token expira rapido**: re-autenticacao automatica em caso de 401
 - **Ativos Totais**: `buscar_ativos()` usa `codigo_situacao=1` e le `total_veiculos` (Atomos dev ~8130). Nao tem como filtrar "apenas ativos que geram boleto" sem acesso a tela especifica do Hinova — ja investigado.
-- **Boletos do dia**:
-  - **Pagos**: boletos do mes com `data_pagamento = hoje`
-  - **Abertos**: boletos com `data_vencimento <= hoje` ainda nao baixados (acumulado do inicio do mes ate hoje, nao apenas emitidos hoje)
+- **"Resumo de ontem"** (antes "Resumo do Dia"): relatorio mostra as ultimas
+  24h — filtros de boletos usam `referencia = date.today() - timedelta(days=1)`,
+  passado via `processar(dados, referencia=ontem)` em `src/scheduler/job.py`.
+  Labels "Cadastro hoje" / "Cancelados hoje" continuam do dia corrente (nao
+  mudaram). Edge case dia 1 do mes: `ontem` cai no mes anterior e
+  `buscar_boletos_mes()` so traz o mes atual — tratar se o chefe pedir.
+  - **Pagos**: boletos do mes com `data_pagamento = ontem`
+  - **Abertos**: boletos com `data_vencimento <= ontem` ainda nao baixados (acumulado do inicio do mes ate ontem)
 - **Boletos do mes**: usa APENAS `data_vencimento_inicial/final` (01 ao ultimo dia). NAO enviar `mes_referente` — esse parametro filtra por mensalidade, excluindo atrasados/antecipados que vencem no mes (ex: mensalidade de marco vencendo em 05/04 era ignorada). Bug descoberto 10/04/2026: com `mes_referente` vinham 817 boletos, sem ele vem ~9991 (numero real).
 - **Paginacao (criterio de parada)**: paginar ate `numero_paginas` retornado pela API, NAO parar quando a pagina veio com menos que `page_size`. A Hinova devolve paginas intermediarias com 499 em vez de 500 e o loop antigo parava cedo perdendo ~10k boletos.
 - **Cancelamentos**: codigos CANCELADO(7), INATIVO(2), PRE-CANCELAMENTO(16)
@@ -238,6 +243,23 @@ Comando: `git revert ec7d9ca`
 - [ ] Agendamento configuravel por tenant
 - [ ] Testes de integracao contra Hinova real
 - [ ] Autenticacao real (JWT) no frontend
+
+---
+
+## 7.1 Atalhos de terminal (start/stop)
+
+Aliases globais no `~/.bashrc` (rodam de qualquer pasta):
+
+```bash
+API_BUSCA        # sobe Quepasa + Backend + Frontend + Scheduler
+API_BUSCA_STOP   # para tudo (inclusive o container Quepasa)
+```
+
+Scripts: `start.sh` e `stop.sh` na raiz do projeto. Logs e PIDs ficam em `logs/`
+(`backend.log`, `frontend.log`, `scheduler.log`). O `start.sh` usa `setsid` para
+cada serviço virar lider de seu proprio grupo de processos; o `stop.sh` mata o
+grupo inteiro e ainda varre as portas 8000/5173 como fallback (evita orfaos
+do uvicorn/vite/esbuild).
 
 ---
 
