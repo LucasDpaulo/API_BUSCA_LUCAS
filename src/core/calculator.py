@@ -123,24 +123,27 @@ def _filtrar_abertos_ate_hoje(boletos: list[dict], referencia: date | None = Non
     return abertos
 
 
-def processar(dados: DadosHinova) -> ReportData:
+def processar(dados: DadosHinova, referencia: date | None = None) -> ReportData:
     """Transforma dados brutos da Hinova em métricas do relatório.
 
-    Entrada: DadosHinova (coletados na Etapa 2)
-    Saída:   ReportData  (pronto para formatar na Etapa 4)
+    Args:
+        dados: DadosHinova coletados na Etapa 2.
+        referencia: data usada para o "Resumo do Dia" (default: hoje).
+            O pipeline passa `ontem` para que o relatório reflita as últimas 24h.
     """
     boletos_mes = dados.boletos_mes or []
+    ref = referencia or date.today()
 
-    # Resumo do dia: pagos hoje (data_pagamento) + abertos com vencimento até hoje (acumulado)
-    pagos_hoje = _filtrar_pagos_hoje(boletos_mes)
-    abertos_ate_hoje = _filtrar_abertos_ate_hoje(boletos_mes)
+    # Resumo do dia: pagos na data de referência + abertos com vencimento <= referência
+    pagos_ref = _filtrar_pagos_hoje(boletos_mes, ref)
+    abertos_ate_ref = _filtrar_abertos_ate_hoje(boletos_mes, ref)
     logger.info(
-        "Boletos pagos hoje: %d | Abertos até hoje (venc≤hoje): %d",
-        len(pagos_hoje), len(abertos_ate_hoje),
+        "Boletos pagos em %s: %d | Abertos até %s (venc<=ref): %d",
+        ref, len(pagos_ref), ref, len(abertos_ate_ref),
     )
 
-    _, dia_pagos = calcular_boletos(pagos_hoje)
-    dia_abertos, _ = calcular_boletos(abertos_ate_hoje)
+    _, dia_pagos = calcular_boletos(pagos_ref)
+    dia_abertos, _ = calcular_boletos(abertos_ate_ref)
 
     mes_abertos, mes_pagos = calcular_boletos(boletos_mes)
 

@@ -10,6 +10,7 @@ Duas opções de execução:
 """
 
 import logging
+from datetime import date, timedelta
 
 from apscheduler.schedulers.blocking import BlockingScheduler
 
@@ -42,17 +43,20 @@ def _testar_tenant(tenant: Tenant) -> str:
         logger.error("Falha na autenticação Hinova para tenant %s", tenant.nome)
         return ""
 
+    ontem = date.today() - timedelta(days=1)
+    logger.info("Referência do 'Resumo de ontem': %s", ontem)
+
     dados = DadosHinova(
         total_ativos=hinova.buscar_ativos(),
-        vendas_dia=hinova.buscar_vendas_dia(),
-        cancelamentos_dia=hinova.buscar_cancelamentos_dia(),
+        vendas_dia=hinova.buscar_vendas_dia(ontem),
+        cancelamentos_dia=hinova.buscar_cancelamentos_dia(ontem),
         boletos_mes=hinova.buscar_boletos_mes(),
     )
 
     if not dados.coleta_ok:
         logger.warning("Nenhum dado coletado para tenant %s", tenant.nome)
 
-    report = processar(dados)
+    report = processar(dados, referencia=ontem)
     mensagem = formatar_relatorio(tenant.nome, report)
     logger.info("Teste concluído — mensagem gerada com sucesso.")
     return mensagem
@@ -77,11 +81,14 @@ def _processar_tenant(db, tenant: Tenant) -> bool:
         logger.error("Falha na autenticação Hinova para tenant %s", tenant.nome)
         return False
 
+    ontem = date.today() - timedelta(days=1)
+    logger.info("Referência do 'Resumo de ontem': %s", ontem)
+
     # 2. Buscar dados brutos (Etapa 2)
     dados = DadosHinova(
         total_ativos=hinova.buscar_ativos(),
-        vendas_dia=hinova.buscar_vendas_dia(),
-        cancelamentos_dia=hinova.buscar_cancelamentos_dia(),
+        vendas_dia=hinova.buscar_vendas_dia(ontem),
+        cancelamentos_dia=hinova.buscar_cancelamentos_dia(ontem),
         boletos_mes=hinova.buscar_boletos_mes(),
     )
 
@@ -89,7 +96,7 @@ def _processar_tenant(db, tenant: Tenant) -> bool:
         logger.warning("Nenhum dado coletado para tenant %s", tenant.nome)
 
     # 3. Calcular métricas (Etapa 3)
-    report = processar(dados)
+    report = processar(dados, referencia=ontem)
 
     # 4. Formatar mensagem (Etapa 4)
     mensagem = formatar_relatorio(tenant.nome, report)

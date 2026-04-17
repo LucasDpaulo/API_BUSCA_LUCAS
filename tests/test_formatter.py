@@ -46,7 +46,9 @@ def test_relatorio_completo():
 
     assert "Locadora ABC" in msg
     assert "1,250" in msg
-    assert "Resumo do Dia" in msg
+    assert "Resumo de ontem" in msg
+    assert "Cadastro ontem" in msg
+    assert "Cancelados ontem" in msg
     assert "Resumo do Mês" in msg
     assert "R$ 5.000,00" in msg  # dia aberto
     assert "R$ 3.000,00" in msg  # dia pago
