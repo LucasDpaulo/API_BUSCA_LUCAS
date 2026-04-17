@@ -16,8 +16,8 @@ Exemplo de relatorio recebido no WhatsApp:
 📊 Relatorio Diario - Locadora ABC
 
 🚗 Ativos Totais: 7,945
-✅ Cadastro ontem: 23
-❌ Cancelados ontem: 12
+✅ Cadastro hoje: 23
+❌ Cancelados hoje: 12
 
 💰 Resumo de ontem:
   • Aberto: R$ 125,27 (2.4%)

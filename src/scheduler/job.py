@@ -48,8 +48,8 @@ def _testar_tenant(tenant: Tenant) -> str:
 
     dados = DadosHinova(
         total_ativos=hinova.buscar_ativos(),
-        vendas_dia=hinova.buscar_vendas_dia(ontem),
-        cancelamentos_dia=hinova.buscar_cancelamentos_dia(ontem),
+        vendas_dia=hinova.buscar_vendas_dia(),
+        cancelamentos_dia=hinova.buscar_cancelamentos_dia(),
         boletos_mes=hinova.buscar_boletos_mes(),
     )
 
@@ -87,8 +87,8 @@ def _processar_tenant(db, tenant: Tenant) -> bool:
     # 2. Buscar dados brutos (Etapa 2)
     dados = DadosHinova(
         total_ativos=hinova.buscar_ativos(),
-        vendas_dia=hinova.buscar_vendas_dia(ontem),
-        cancelamentos_dia=hinova.buscar_cancelamentos_dia(ontem),
+        vendas_dia=hinova.buscar_vendas_dia(),
+        cancelamentos_dia=hinova.buscar_cancelamentos_dia(),
         boletos_mes=hinova.buscar_boletos_mes(),
     )
 
